@@ -32,14 +32,14 @@ async def on_ready():
     print("📜 FFXI Quote Bot is ready — Vana'diel awaits!")
 
 
-# Trigger: User sends a message (10% chance to drop a quote)
+# Trigger: User sends a message (1% chance to drop a quote)
 @bot.event
 async def on_message(message: discord.Message):
     if message.author.bot:
         return
 
     import random
-    if random.random() < 0.10:          # 10 % chance
+    if random.random() < 0.01:          # 1% chance
         speaker, quote = get_random_quote()
         await message.channel.send(format_quote(speaker, quote))
 
