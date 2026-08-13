@@ -1,7 +1,8 @@
 import random
+from datetime import datetime
 
 # ─────────────────────────────────────────────
-#  FFXI Quote Database — Full Edition
+#  FFXI Quote Database — Full Edition v2
 # ─────────────────────────────────────────────
 
 NPC_STORY = [
@@ -15,16 +16,12 @@ NPC_STORY = [
     ("Selh'teus", "The memories we carry are not burdens — they are proof we lived."),
     ("Nag'molada", "The Emptiness... it calls to all of us, sooner or later."),
     ("Nag'molada", "Progress demands sacrifice. History will understand, even if you do not."),
-    ("Nag'molada", "You call it betrayal. I call it foresight with an unfortunate cost."),
     ("Ulmia", "The song... it still lives within me. As long as I draw breath, hope is not lost."),
     ("Ulmia", "Music does not conquer darkness. It reminds us what we are fighting to return to."),
-    ("Ulmia", "Even a melody played only once can echo forever in the hearts that heard it."),
     ("Tenzen", "A warrior's path is walked alone. But that does not mean one cannot walk beside another."),
-    ("Tenzen", "Honor is not a shield. It is a compass."),
     # --- Rise of the Zilart ---
     ("Kam'lanaut", "The future belongs to those strong enough to seize it."),
     ("Kam'lanaut", "We did not betray anyone. We simply chose a different path to paradise."),
-    ("Kam'lanaut", "Paradise built upon suffering is a cage with beautiful bars."),
     ("Eald'narche", "You speak of bonds as though they were strength. They are chains, nothing more."),
     ("Eald'narche", "I have lived a thousand years waiting for this moment. You will not stop it in an afternoon."),
     ("Lion", "Don't worry. I'll watch your back — just try not to make it easy for them."),
@@ -34,29 +31,25 @@ NPC_STORY = [
     # --- Treasures of Aht Urhgan ---
     ("Aphmau", "I don't understand everything yet, but I know I have to keep moving forward."),
     ("Aphmau", "An empress who cannot protect her own people is no empress at all."),
-    ("Aphmau", "Power without compassion is just organized cruelty."),
     ("Luzaf", "A pirate does not ask for forgiveness. He simply takes what is owed."),
-    ("Luzaf", "Betrayal and loyalty are two sides of the same coin. It depends which way it lands."),
     ("Luzaf", "The sea does not judge. That is why I prefer it to courts and councils."),
-    ("Razfahd", "Power is wasted on the compassionate. I will not make that mistake."),
     ("Shantotto", "Oh ho ho! Did you really think you could match wits with the great Shantotto?"),
-    ("Shantotto", "Your pathetic resistance only makes this more entertaining, ho ho ho!"),
     ("Shantotto", "Power and genius rarely share a vessel. Lucky for Vana'diel, I have both."),
     ("Shantotto", "I would explain my genius, but your brain would dissolve before I finished!"),
     ("Shantotto", "Oh ho ho! Do try to keep up, you magnificent disappointment!"),
+    ("Lehko Habhoka", "A Corsair never tells you all his cards. That's not dishonesty — that's survival."),
     # --- Wings of the Goddess ---
     ("Lilisette", "Dance with your heart, and the world will have no choice but to listen."),
     ("Lilisette", "The future isn't written yet. That's exactly why we have to fight for it."),
     ("Lilisette", "Every step I take is a step away from the world I don't want to live in."),
     ("Cait Sith", "Mrrrow... The star sings, but do ye have the ears to hear it?"),
-    ("Cait Sith", "Fate cannae be read like a map, kupo. Ye must walk the path to know it."),
+    ("Cait Sith", "Fate cannae be read like a map. Ye must walk the path to know it."),
     ("Cait Sith", "The past is a wound. The future is a scar. The present is where ye can still choose."),
     ("Portia", "Some doors, once opened, can never be closed again."),
     ("Lilith", "You cling to a future that was never meant to be. How terribly human of you."),
     ("Lilith", "Hope is the most vicious trap ever devised. And you walked right into it."),
     # --- Seekers of Adoulin ---
     ("Arciela", "I have stood at the edge of the abyss... and chosen to turn back."),
-    ("Arciela", "The colonization of Ulbuka is not just about land. It is about what we become."),
     ("Arciela", "A kingdom that consumes the world to survive deserves neither."),
     ("Ygnas", "Leadership is not about standing in front. It is about making sure no one is left behind."),
     ("Teodor", "Every map ends somewhere. Beyond that line is where the real work begins."),
@@ -67,138 +60,72 @@ NPC_STORY = [
     ("Iroha", "Every impossible thing you've done — someone is alive because of it."),
     ("Bahamut", "Pitiful creatures of darkness... what do you hope to accomplish?"),
     ("Bahamut", "I have endured since before your kingdoms rose. I shall endure after they fall."),
-    ("Bahamut", "You are not the first to challenge me in the name of hope. You may be the last."),
     ("Altana", "I did not create life to see it extinguished. Rise, adventurer. Rise and endure."),
     ("Promathia", "Hope is the cruelest lie. I gave them despair so they would stop suffering it."),
     ("Promathia", "Every prayer to Altana is a wound in me. And yet they never stop praying."),
-    # --- General / Fan Favorites ---
+    # --- Fan Favorites ---
     ("Zeid", "Power without purpose is just destruction with a name."),
     ("Zeid", "The dark does not make monsters. It only reveals what was already there."),
-    ("Zeid", "I have walked this road long enough to know where every path leads. None of them are easy."),
     ("Gilgamesh", "I have sailed every sea and fought every foe worth fighting. You come close."),
     ("Gilgamesh", "Norg has seen empires come and go. We are still here. Make of that what you will."),
-    ("Semih Lafihna", "The Mithra do not fear death. We simply prefer to avoid it... most of the time."),
-    ("Volker", "A San d'Orian knight does not retreat. He tactically advances in a rearward direction."),
-    ("Lehko Habhoka", "A Corsair never tells you all his cards. That's not dishonesty — that's survival."),
     ("Aldo", "Information is the only currency that never devalues. Remember that."),
+    ("Volker", "A San d'Orian knight does not retreat. He tactically advances in a rearward direction."),
     ("Verena", "Every ruin was once someone's greatest achievement. Keep that in mind when you build."),
-    ("Yve'noile", "The Mithra who lives alone in the forest is not lost. She is simply choosing her company carefully."),
-    ("Excenmille", "San d'Oria's glory is not a matter of opinion. It is a matter of when, not if."),
 ]
 
 BATTLE_CRIES = [
-    ("Warrior", "MIGHTY STRIKES!"),
-    ("Warrior", "Berserk! They'll never bring me down!"),
-    ("Warrior", "Warcry! COME ON THEN!"),
-    ("Warrior", "Aggressor! My offense is my defense!"),
-    ("Warrior", "Rampage! Every hit counts!"),
-    ("Monk", "HUNDRED FISTS! HAAAAAH!"),
-    ("Monk", "Chakra... and back in the fight!"),
-    ("Monk", "Counterstance! Hit me. I dare you."),
-    ("Monk", "Boost — Boost — Boost — DRAGON KICK!"),
-    ("Monk", "Formless Strikes! The empty hand breaks all."),
-    ("White Mage", "Curaga IV! Hang on everyone!"),
-    ("White Mage", "Benediction! Everyone get up NOW!"),
-    ("White Mage", "Divine Seal — Holy!"),
-    ("White Mage", "Reraise is up. Don't make me use it."),
+    ("Warrior", "MIGHTY STRIKES!"), ("Warrior", "Berserk! They'll never bring me down!"),
+    ("Warrior", "Warcry! COME ON THEN!"), ("Warrior", "Aggressor! My offense is my defense!"),
+    ("Monk", "HUNDRED FISTS! HAAAAAH!"), ("Monk", "Chakra... and back in the fight!"),
+    ("Monk", "Counterstance! Hit me. I dare you."), ("Monk", "Boost — Boost — Boost — DRAGON KICK!"),
+    ("White Mage", "Curaga IV! Hang on everyone!"), ("White Mage", "Benediction! Everyone get up NOW!"),
+    ("White Mage", "Divine Seal — Holy!"), ("White Mage", "Reraise is up. Don't make me use it."),
     ("White Mage", "Shellra V! Barfira! We're ready."),
-    ("White Mage", "Afflatus Solace. My cures make us stronger."),
-    ("Black Mage", "MANAFONT! FLARE II!"),
-    ("Black Mage", "Freeze II! Stay still and let the blizzard take you!"),
-    ("Black Mage", "Thundaga IV — goodbye, cluster."),
-    ("Black Mage", "Magic Burst! FIRE IV!"),
-    ("Black Mage", "Stun! Not today."),
+    ("Black Mage", "MANAFONT! FLARE II!"), ("Black Mage", "Freeze II! Stay still and let it take you!"),
+    ("Black Mage", "Thundaga IV — goodbye, cluster."), ("Black Mage", "Magic Burst! FIRE IV!"),
     ("Black Mage", "Elemental Seal — Sleep II. Goodnight, everyone."),
-    ("Red Mage", "Chainspell — now BURN!"),
-    ("Red Mage", "Refresh is up, heal through it!"),
+    ("Red Mage", "Chainspell — now BURN!"), ("Red Mage", "Refresh is up, heal through it!"),
     ("Red Mage", "Convert! Don't worry, I planned for this."),
     ("Red Mage", "Enfeebling Magic — Slow, Paralyze, Gravity. You're not going anywhere fast."),
-    ("Red Mage", "En-spell up. Every swing counts."),
     ("Thief", "Flee! ...and maybe I'll come back for you."),
     ("Thief", "Treasure Hunter — the drops belong to me now."),
     ("Thief", "Sneak Attack — Trick Attack — WEAPONSKILL. Beautiful."),
     ("Thief", "Perfect Dodge! Try hitting air."),
-    ("Thief", "Steal! ...It's not stealing if they were going to drop it anyway."),
-    ("Paladin", "Cover! Get behind me!"),
-    ("Paladin", "Invincible! Nobody dies today!"),
-    ("Paladin", "Sentinel. Nothing gets through me."),
-    ("Paladin", "Shield Bash — Stun. Sit down."),
-    ("Paladin", "Rampart! This party is under my protection."),
-    ("Dark Knight", "Last Resort — SOULEATER!"),
-    ("Dark Knight", "Absorb-TP... yes. Drain... yes. This is going well."),
-    ("Dark Knight", "Blood Weapon. Let the pain fuel the fight."),
+    ("Paladin", "Cover! Get behind me!"), ("Paladin", "Invincible! Nobody dies today!"),
+    ("Paladin", "Sentinel. Nothing gets through me."), ("Paladin", "Shield Bash — Stun. Sit down."),
+    ("Dark Knight", "Last Resort — SOULEATER!"), ("Dark Knight", "Blood Weapon. Let the pain fuel the fight."),
     ("Dark Knight", "Stun! Not while I'm still standing."),
-    ("Dark Knight", "Arcane Circle — face your own darkness."),
-    ("Beastmaster", "Sic 'em, Courier Carrie!"),
-    ("Beastmaster", "Call Beast! Your time has come, Funguar!"),
+    ("Beastmaster", "Sic 'em, Courier Carrie!"), ("Beastmaster", "Call Beast! Your time has come!"),
     ("Beastmaster", "Reward — good boy. Now go wreck that NM."),
-    ("Beastmaster", "Feral Howl! Run while you still can."),
-    ("Bard", "Advancing March — let's go, let's GO!"),
-    ("Bard", "Minuet V — Minne V — Ballad II. You're welcome."),
-    ("Bard", "Lullaby! Sweet dreams, everyone except us."),
-    ("Bard", "Elegy! Slow and suffer."),
+    ("Bard", "Advancing March — let's go, let's GO!"), ("Bard", "Minuet V — Minne V — Ballad II. You're welcome."),
+    ("Bard", "Lullaby! Sweet dreams, everyone except us."), ("Bard", "Elegy! Slow and suffer."),
     ("Bard", "Finale! That buff is gone."),
-    ("Bard", "Troubadour! These songs last twice as long."),
-    ("Ranger", "Eagle Eye Shot — don't blink."),
-    ("Ranger", "Barrage! Count those hits!"),
+    ("Ranger", "Eagle Eye Shot — don't blink."), ("Ranger", "Barrage! Count those hits!"),
     ("Ranger", "Shadowbind! You're not going anywhere."),
-    ("Ranger", "Velocity Shot! Speed and precision."),
-    ("Samurai", "Meikyo Shisui — TACHI: KAITEN!"),
-    ("Samurai", "Meditate... Meditate... Tachi: Gekko!"),
-    ("Samurai", "Third Eye. I see you. And you."),
-    ("Samurai", "Sekkanoki! Two weaponskills, one breath."),
-    ("Samurai", "Shikikoyo! Here, take my TP. Put it to use."),
-    ("Ninja", "Mijin Gakure! ...Sorry about this."),
-    ("Ninja", "Utsusemi: Ni! Shadows up, let's dance."),
+    ("Samurai", "Meikyo Shisui — TACHI: KAITEN!"), ("Samurai", "Meditate... Meditate... Tachi: Gekko!"),
+    ("Samurai", "Third Eye. I see you. And you."), ("Samurai", "Sekkanoki! Two weaponskills, one breath."),
+    ("Ninja", "Mijin Gakure! ...Sorry about this."), ("Ninja", "Utsusemi: Ni! Shadows up, let's dance."),
     ("Ninja", "Ni-Ton! Kurayami: Ni! You're blind AND slow."),
-    ("Ninja", "Futae! Double the elemental damage, double the pain."),
-    ("Ninja", "Yonin! Staying in the shadows tonight."),
-    ("Dragoon", "Jump! ...Wyvern, you're up!"),
-    ("Dragoon", "High Jump! Penta Thrust incoming!"),
+    ("Dragoon", "Jump! ...Wyvern, you're up!"), ("Dragoon", "High Jump! Penta Thrust incoming!"),
     ("Dragoon", "Ancient Circle — time to fight dragons with a dragon."),
-    ("Dragoon", "Super Jump! I'll be right back."),
-    ("Dragoon", "Drachen Armet is on. The Wyvern breathes for us."),
-    ("Summoner", "Ifrit! Burning Strike!"),
-    ("Summoner", "Shiva! Diamond Dust — good night!"),
-    ("Summoner", "Fenrir! Eclipse Bite — the hunt is on!"),
-    ("Summoner", "Astral Flow... Odin. ZANTETSUKEN."),
-    ("Summoner", "Carbuncle! Ruby Light — protect us!"),
+    ("Summoner", "Ifrit! Burning Strike!"), ("Summoner", "Shiva! Diamond Dust — good night!"),
+    ("Summoner", "Fenrir! Eclipse Bite — the hunt is on!"), ("Summoner", "Astral Flow... Odin. ZANTETSUKEN."),
     ("Summoner", "Garuda! Predator Claws — strike from the sky!"),
-    ("Blue Mage", "Cannonball — brace yourselves!"),
-    ("Blue Mage", "Disseverment! Learned that one the hard way."),
-    ("Blue Mage", "Goblin Rush! ...Yes, I copied a Goblin. No, I'm not proud."),
-    ("Blue Mage", "Magic Hammer! TP for me, nothing for you."),
+    ("Blue Mage", "Cannonball — brace yourselves!"), ("Blue Mage", "Magic Hammer! TP for me, nothing for you."),
     ("Blue Mage", "Actinic Burst! Now you're blinded AND silenced."),
-    ("Blue Mage", "Diamondhide! Nothing's getting through this."),
-    ("Corsair", "Bolter's Roll — snake eyes baby!"),
-    ("Corsair", "Chaos Roll! We live and die by the numbers!"),
-    ("Corsair", "Leaden Salute! Call it a calculated risk."),
-    ("Corsair", "Quick Draw! No time to dodge."),
-    ("Corsair", "Fold! Cutting our losses and resetting the odds."),
-    ("Puppetmaster", "Activate! Stringing Pummel!"),
-    ("Puppetmaster", "Overdrive! Full automation, maximum pain."),
-    ("Puppetmaster", "Tactical Switch — you're doing great, buddy."),
-    ("Puppetmaster", "Maintenance! Taking care of my partner mid-battle."),
-    ("Dancer", "Saber Dance — let's go!"),
-    ("Dancer", "Reverse Flourish! TP refunded, full house."),
+    ("Corsair", "Bolter's Roll — snake eyes baby!"), ("Corsair", "Chaos Roll! We live and die by the numbers!"),
+    ("Corsair", "Leaden Salute! Call it a calculated risk."), ("Corsair", "Quick Draw! No time to dodge."),
+    ("Puppetmaster", "Activate! Stringing Pummel!"), ("Puppetmaster", "Overdrive! Maximum pain."),
+    ("Dancer", "Saber Dance — let's go!"), ("Dancer", "Reverse Flourish! TP refunded, full house."),
     ("Dancer", "Curing Waltz IV! Nobody asks, everybody gets healed."),
-    ("Dancer", "Haste Samba! Keep up!"),
-    ("Dancer", "Violent Flourish! Stunned and sorry."),
-    ("Dancer", "Trance! The dance never ends."),
-    ("Scholar", "Tabula Rasa — this ends NOW!"),
-    ("Scholar", "Sublimation. Patience. Power. Repeat."),
+    ("Dancer", "Haste Samba! Keep up!"), ("Dancer", "Violent Flourish! Stunned and sorry."),
+    ("Scholar", "Tabula Rasa — this ends NOW!"), ("Scholar", "Sublimation. Patience. Power. Repeat."),
     ("Scholar", "Manifestation — party-wide Sleep II. Night night."),
-    ("Scholar", "Stratagems refreshed. Let the lecture resume."),
     ("Scholar", "Enlightenment! Both arts at once. You're welcome."),
-    ("Geomancer", "Indi-Refresh — hold formation!"),
-    ("Geomancer", "Geo-Malaise! Feel the earth pulling you down."),
+    ("Geomancer", "Indi-Refresh — hold formation!"), ("Geomancer", "Geo-Malaise! Feel the earth pulling you down."),
     ("Geomancer", "Bolster! The luopan speaks and the land listens."),
-    ("Geomancer", "Life Cycle! The earth reclaims what it gave."),
-    ("Rune Fencer", "Lunge — face the runes!"),
-    ("Rune Fencer", "Vallation — the runes hold. Come closer."),
-    ("Rune Fencer", "Pflug! The element bends to my will."),
-    ("Rune Fencer", "Swipe! One arc, one strike."),
-    ("Rune Fencer", "Gambit! The runes choose the battlefield now."),
+    ("Rune Fencer", "Lunge — face the runes!"), ("Rune Fencer", "Vallation — the runes hold. Come closer."),
+    ("Rune Fencer", "Pflug! The element bends to my will."), ("Rune Fencer", "Gambit! The runes choose the battlefield."),
 ]
 
 MOOGLE_QUIPS = [
@@ -212,18 +139,18 @@ MOOGLE_QUIPS = [
     ("Conquest Tally Moogle", "Kupo! Sandoria is in first this week! ...barely, kupo."),
     ("Moogle", "Rest here, kupo! Your Mog House is always waiting for you, kupo!"),
     ("Nomad Moogle", "Kupo! Out here in the field, even moogles must be brave, kupo!"),
-    ("Moogle", "Kupo! I tried to reorganize your bazaar while you were gone. I may have sold something important, kupo."),
-    ("Moogle", "A delivery arrived while you were out, kupo! I signed for it. I also opened it. It smelled nice, kupo."),
+    ("Moogle", "Kupo! I tried to reorganize your bazaar. I may have sold something important, kupo."),
     ("Moogle", "Kupo! Your Mog Garden needs attention! The crops are expressing frustration, kupo."),
     ("Rent-a-Room Moogle", "Kupo! Resting is not laziness, kupo! It is strategic recovery! Kupo!"),
-    ("Moogle", "Kupo! You have new moogle mail! I did not read it this time. Kupo. Mostly."),
     ("Moogle", "Kupo! The Auction House rejected your listing again. Perhaps price it lower, kupo?"),
-    ("Moogle", "Kupo! Another adventurer asked me what you do for a living. I did not have a good answer, kupo."),
-    ("Moogle", "Kupo! I polished all your equipment while you were out! ...The ones I could lift, kupo."),
-    ("Moogle", "Kupo! Someone slipped a note under the door. It said 'Tell your adventurer to reraise.' Very mysterious, kupo."),
+    ("Moogle", "Kupo! Another adventurer asked me what you do for a living. I had no good answer, kupo."),
+    ("Moogle", "Kupo! I polished all your equipment while you were out! The ones I could lift, kupo."),
+    ("Moogle", "Kupo! Someone slipped a note under the door. It said 'Tell your adventurer to reraise.' Mysterious, kupo."),
     ("Moogle", "Kupo! I tried cooking your rations. The Mog House still smells a little unusual, kupo."),
-    ("Moogle", "Kupo! I was going to clean your Mog House, but then I took a nap. It is very cozy in here, kupo."),
-    ("Moogle", "Your fame has grown so much, kupo! Even I get recognized when I mention your name! Mostly confused looks, but still, kupo!"),
+    ("Moogle", "Kupo! I was going to clean your Mog House but then I took a nap. It is very cozy in here, kupo."),
+    ("Moogle", "Your fame has grown so much, kupo! Even I get recognized when I mention your name! Mostly confused looks, kupo!"),
+    ("Moogle", "Kupo! I accepted a quest on your behalf while you were gone. I am not certain it was a good idea, kupo."),
+    ("Moogle", "Kupo! A Goblin came to the door asking for you. I told him you were out. He seemed disappointed, kupo."),
 ]
 
 EMOTE_FLAVOR = [
@@ -245,10 +172,10 @@ EMOTE_FLAVOR = [
     ("Adventurer", "/sulk — You sulk. The Ninja forgot to put shadows up again."),
     ("Adventurer", "/dance — You dance! The party wipes. Coincidence? Probably not."),
     ("Adventurer", "/bow — You bow respectfully. The Beastmaster just solo'd a god-tier NM."),
-    ("Adventurer", "/sweat — You break into a cold sweat. There are 30 minutes left on the Dynamis clock."),
+    ("Adventurer", "/sweat — You break into a cold sweat. 30 minutes left on the Dynamis clock."),
     ("Adventurer", "/pray — You pray. The ??? spawns. The NM is not what you hoped."),
     ("Adventurer", "/grin — You grin. You got the claim. Let the suffering begin."),
-    ("Adventurer", "/no — You shake your head. Someone just asked if we should try Absolute Virtue with eight people."),
+    ("Adventurer", "/no — You shake your head. Someone asked if we should try AV with eight people."),
     ("Adventurer", "/yes — You nod enthusiastically. You have no idea what you just agreed to."),
     ("Adventurer", "/laugh — You laugh. The Goblin dropped absolutely nothing. Again."),
     ("Adventurer", "/angry — You are angry! Someone lotted on gear they can't even equip!"),
@@ -256,104 +183,75 @@ EMOTE_FLAVOR = [
 ]
 
 AVATAR_QUOTES = [
-    # --- Ifrit ---
     ("Ifrit", "Come! Bathe in my flames and be purified... or perish in the attempt!"),
     ("Ifrit", "The fires of Ifrit consume all who stand against us. Are you prepared, summoner?"),
     ("Ifrit", "Burning Strike! Let the conflagration begin!"),
     ("Ifrit", "Crimson Howl! Let the fire in your veins ignite!"),
     ("Ifrit", "Flaming Crush! I will grind you to cinders!"),
     ("Ifrit", "The weak fear fire. The strong learn to wield it."),
-    # --- Shiva ---
     ("Shiva", "Your enemies shall know the cold embrace of oblivion. I will see to it personally."),
     ("Shiva", "Diamond Dust! Let the blizzard swallow them whole."),
     ("Shiva", "The cold does not discriminate. Neither shall I."),
     ("Shiva", "Heavenly Strike! Even the sky freezes at my command."),
-    ("Shiva", "Rush! Do not mistake stillness for weakness."),
     ("Shiva", "Ice is patient. It waits. Then it entombs."),
-    # --- Ramuh ---
     ("Ramuh", "Judgment Bolt! Let the heavens themselves bear witness!"),
     ("Ramuh", "Foolish mortals... you would challenge the storm itself?"),
-    ("Ramuh", "The thunder speaks where words cannot. Heed its counsel well."),
     ("Ramuh", "Chaotic Strike! Lightning does not ask where it may fall."),
     ("Ramuh", "I am older than your kingdoms. I have outlasted greater arrogance than yours."),
-    ("Ramuh", "Thunderstrike! The storm has made its judgment."),
-    # --- Titan ---
     ("Titan", "Geocrush! The very earth rises to answer my call!"),
     ("Titan", "You stand upon my domain. Every stone, every root answers to me."),
     ("Titan", "Solid as the mountain. Unyielding as the stone. That is my covenant with you."),
     ("Titan", "Rock Buster! The earth itself becomes your enemy!"),
-    ("Titan", "Megalith Throw! Let the mountains themselves come to you!"),
     ("Titan", "The earth does not move quickly. But when it does, nothing survives."),
-    # --- Leviathan ---
     ("Leviathan", "Tidal Wave! Let the depths reclaim what is theirs!"),
     ("Leviathan", "The sea is patient. It has swallowed greater armies than yours."),
     ("Leviathan", "All rivers return to me in time. As will you."),
     ("Leviathan", "Spinning Dive! The current answers my call!"),
-    ("Leviathan", "Water Cannon! The ocean does not yield. Neither do I."),
     ("Leviathan", "Drown in the deep. I have been waiting at the bottom for you."),
-    # --- Garuda ---
     ("Garuda", "Predator Claws! The gale answers my call!"),
     ("Garuda", "You cannot outrun the wind. You cannot hide from the sky."),
     ("Garuda", "The storm does not ask permission. Nor do I."),
     ("Garuda", "Aerial Blast! Not even the air is safe from my wrath!"),
-    ("Garuda", "Whispering Wind! The breeze that heals... or the gale that destroys."),
     ("Garuda", "The wind remembers everything it has touched. I remember your failures."),
-    # --- Fenrir ---
     ("Fenrir", "Eclipse Bite! The moon darkens and the hunt begins!"),
     ("Fenrir", "The lone wolf does not hunger. He endures, and he strikes true."),
     ("Fenrir", "Run if you must. The night is vast... but I am faster."),
-    ("Fenrir", "Lunar Cry! Even the moon turns its face from your weakness!"),
     ("Fenrir", "Howling Moon! I call the darkness, and the darkness answers."),
     ("Fenrir", "The hunt does not end at dawn. It only pauses."),
-    # --- Diabolos ---
     ("Diabolos", "Ruinous Omen! Your nightmares take shape!"),
     ("Diabolos", "Reality is merely the dream you have not woken from yet."),
     ("Diabolos", "Come, step into the dark. I have been waiting for you here."),
     ("Diabolos", "Nightmare! Sleep, and dream of your failures."),
-    ("Diabolos", "Camisado! The mind is the battlefield I prefer."),
     ("Diabolos", "Dark Orb! Let the gravity of your despair consume you."),
-    # --- Carbuncle ---
     ("Carbuncle", "Ruby Light! Let the radiance shield us!"),
     ("Carbuncle", "Do not be afraid. I am here, and the light will hold."),
     ("Carbuncle", "Even in the darkest place, a single gem can illuminate the way."),
     ("Carbuncle", "Soothing Ruby! Rest now. I'll keep watch."),
     ("Carbuncle", "Meteorite! Even small things can shake the world."),
-    ("Carbuncle", "Glittering Ruby! My light is yours to wield."),
-    # --- Cait Sith ---
     ("Cait Sith", "Reraise! The battle is not over while breath remains!"),
-    ("Cait Sith", "Mrrrow! The stars whisper strange things tonight. You'd do well to listen."),
+    ("Cait Sith", "The stars whisper strange things tonight. You'd do well to listen."),
     ("Cait Sith", "Fate is a fickle thing. Even I cannot read it clearly... most of the time."),
-    ("Cait Sith", "Altair! The star guides us true."),
-    ("Cait Sith", "Beware the turning of tides, kupo. I sense something on the wind."),
     ("Cait Sith", "The stars have seen this moment coming. Whether that is comfort or warning, I leave to you."),
-    # --- Alexander ---
     ("Alexander", "Holy! Divine judgment descends upon the unworthy!"),
     ("Alexander", "Steel yourself. The fortress does not tremble. Neither shall we."),
     ("Alexander", "Justice is not blind. It sees clearly, and it finds you wanting."),
     ("Alexander", "Perfect Defense! No force in this world shall pass!"),
     ("Alexander", "Radiant Sacrament! The light purifies all impurity."),
-    ("Alexander", "Sovereignty! The sacred law protects those who walk in light."),
-    # --- Odin ---
     ("Odin", "Zantetsuken! One stroke. One breath. One end."),
     ("Odin", "Sleipnir carries me across eight worlds. There is nowhere you can flee."),
     ("Odin", "All things must end. I am simply the instrument of that inevitability."),
     ("Odin", "Gungnir! The spear of the Allfather does not miss."),
-    ("Odin", "Dark Wave! Even the gods must answer to entropy."),
     ("Odin", "I ride not toward death, but past it. What comes after is your concern."),
-    # --- Bahamut ---
     ("Bahamut", "Megaflame! The elder dragon speaks, and the world burns!"),
     ("Bahamut", "I have watched civilizations rise and crumble. You are but a moment in the tide."),
     ("Bahamut", "Gigaflare! There is no shelter from my wrath!"),
     ("Bahamut", "You sought to bind the king of dragons? Amusing. And brief."),
     ("Bahamut", "My patience has outlasted empires. Do not mistake it for weakness."),
-    # --- Phoenix ---
     ("Phoenix", "Rebirth! From the ash, we rise once more!"),
     ("Phoenix", "Death is not the end for those with the will to return. Rise."),
     ("Phoenix", "Flames that destroy also renew. Do not fear the fire."),
-    ("Phoenix", "Revelation! The cycle continues as it always has!"),
     ("Phoenix", "I have died a thousand times. Each time, I return stronger. Remember that."),
     ("Phoenix", "Flames of Rebirth! What burns away is replaced by something stronger."),
-    # --- Atomos ---
     ("Atomos", "The void consumes all. Distance is meaningless. Resistance is futile."),
     ("Atomos", "Drawn in... drawn in... all things return to the darkness in the end."),
     ("Atomos", "Comet! Even the stars are not safe from my hunger."),
@@ -364,16 +262,15 @@ AVATAR_QUOTES = [
 NOTORIOUS_MONSTERS = [
     ("Absolute Virtue", "You thought Jailer of Love was the hard one. Adorable."),
     ("Absolute Virtue", "Manafont. Again. Have you considered a different hobby?"),
+    ("Absolute Virtue", "Mijin Gakure? How quaint. I heal for that amount."),
     ("Pandemonium Warden", "18 hours. You had 18 hours and still couldn't finish the job."),
-    ("Pandemonium Warden", "Another form. Another chance for you to reconsider your life choices."),
+    ("Pandemonium Warden", "Another form. Another chance to reconsider your life choices."),
     ("Nidhogg", "Come for the wyrm, stay for the trauma. The drop rate appreciates your optimism."),
-    ("Nidhogg", "Two-hour reset. I will still be here when it's ready. Will you?"),
     ("Fafnir", "Another party shattered on my scales. The Haubergeon is not for the weak."),
     ("Fafnir", "You claimed the claim. Congratulations on the first five percent."),
     ("Kirin", "I have seen a thousand alliance wipes. Yours was not particularly memorable."),
     ("Kirin", "The Four Gods answer to me. What exactly do you answer to?"),
     ("Cerberus", "Three heads means three times the disappointment. I admire your persistence."),
-    ("Cerberus", "Magma Hoplon. The name sounded scary the first time too. You'll adjust."),
     ("Khimaira", "You came with twelve. You left with fewer. I consider that a success."),
     ("Ouryu", "The clouds are my domain. Your airship does not impress me."),
     ("King Behemoth", "You claimed the King. The King finds this... premature."),
@@ -384,9 +281,10 @@ NOTORIOUS_MONSTERS = [
     ("Seiryu", "A worthy effort. Tragically, effort alone does not equal victory."),
     ("Dynamis Lord", "You have cleared every zone. And still you come. I respect the stubbornness."),
     ("Dynamis Lord", "Time is my weapon. Your clock is already running."),
-    ("Ix'DRG", "Limbus has humbled better adventurers than you. Welcome to the tradition."),
     ("Proto-Ultima", "Adaptive defense engaged. Perhaps adapt your strategy as well."),
     ("Proto-Omega", "Your weaponskills were impressive. Right up until they weren't."),
+    ("Tinnin", "The Salaheem's Sentinel was not prepared for this. Neither were you."),
+    ("Lilith", "You defeated me once. I simply have more forms than you have patience."),
 ]
 
 CITY_FLAVOR = [
@@ -395,9 +293,9 @@ CITY_FLAVOR = [
     ("Bastok Blacksmith", "The Republic's steel is the finest in Vana'diel. Anyone who says otherwise hasn't tried it."),
     ("Bastok Miner", "The Palborough Mines don't dig themselves. Mostly because of the Quadavs."),
     ("Windurst Tarutaru", "Taru taru! You look like someone who needs a spell researched, taru!"),
-    ("Windurst Scholar", "The Full Moon Fountain's magic is not something we understand completely. That is what makes it so exciting, taru!"),
+    ("Windurst Scholar", "The Full Moon Fountain's magic is not something we fully understand. That is what makes it exciting, taru!"),
     ("San d'Oria Knight", "The Kingdom's honor is maintained at all borders. State your business, adventurer."),
-    ("San d'Oria Noble", "San d'Oria has stood for a thousand years. It will stand a thousand more. Assuming the Orcs cooperate."),
+    ("San d'Oria Noble", "San d'Oria has stood for a thousand years. Assuming the Orcs cooperate, a thousand more."),
     ("Aht Urhgan Merchant", "You have the look of someone who has coin and no idea where to spend it. Welcome."),
     ("Aht Urhgan Guard", "The Empress's peace extends to all within these walls. Try not to test it."),
     ("Selbina Shepherd", "The Crag of Mea isn't far. Don't say I didn't warn you about the Goblins."),
@@ -410,30 +308,156 @@ CITY_FLAVOR = [
     ("Adoulin Pioneer", "Ulbuka is not a place for the unprepared. It is also not a place for the prepared. It is simply dangerous."),
     ("Adoulin Settler", "They say the jungle has a thousand ways to kill you. I've personally counted seventeen so far this week."),
     ("Mhaura Ferryman", "Selbina or Mhaura — that's the route. Nothing in between except sea and regret."),
-    ("Kazham Elder", "The Mithra have lived in these jungles since before your nations had names. Show some respect for the trees, kupo."),
+    ("Kazham Elder", "The Mithra have lived in these jungles since before your nations had names. Show some respect."),
     ("Ru'Lude Gardens Butler", "The Archduke receives visitors by appointment. Your heroism may expedite that process."),
 ]
 
+PLAYER_SAY = [
+    ("Anonymous WHM", "Need WHM? I've been sitting here for 3 hours. Just saying."),
+    ("Anonymous WHM", "I WILL cast Raise on you. After I finish my Hi-Potion. ...And a sandwich."),
+    ("Anonymous WHM", "Healing is thankless work. Do you say thank you when your liver functions? Exactly."),
+    ("Anonymous BRD", "I have Elegy but I need refresh first. ...And Ballad. ...And a tank. Anyone?"),
+    ("Anonymous BRD", "I'll put on Minuet as soon as the BLM stops complaining about Minuet. So: never."),
+    ("Anonymous BLM", "WHAT DO YOU MEAN THE SKILLCHAIN WINDOW CLOSED. I WAS CASTING."),
+    ("Anonymous BLM", "I need to nuke. The tank needs to hold hate. These are two separate problems."),
+    ("Anonymous RDM", "I can enfeeble, refresh, heal, and Convert. What I cannot do is carry the whole party. But I will try."),
+    ("Anonymous THF", "I'm not lotting on your gear. I'm lotting on MY gear that the RNG put in your class's loot table."),
+    ("Anonymous THF", "Flee is a utility skill. Primarily the utility of not dying. You're welcome."),
+    ("Anonymous PLD", "I have 3,000 HP and Invincible and you STILL pulled hate. I am in awe."),
+    ("Anonymous PLD", "Cover is for protecting allies. I will not explain why I used it on the Goblin."),
+    ("Anonymous MNK", "Hundred Fists is a two-hour ability. Using it on every Goblin is fine. I have decided."),
+    ("Anonymous DRK", "Souleater trades HP for damage. I'm at 12 HP. This is fine. This is fine."),
+    ("Anonymous SMN", "My avatar costs MP. Your complaints about my avatar cost me sanity. We're both losing."),
+    ("Anonymous DRG", "My Wyvern is fine. My Wyvern is always fine. Please stop asking about my Wyvern."),
+    ("Anonymous COR", "Snake eyes. Again. The dice are broken. The dice are ALWAYS BROKEN."),
+    ("Anonymous DNC", "I can heal AND deal damage AND apply status effects. Please stop ignoring me at parties."),
+    ("Anonymous NIN", "Utsusemi is not a cooldown. It's a lifestyle. A very stressful lifestyle."),
+    ("Anonymous SAM", "I have 3,000% TP. I have been holding it for 20 minutes. Someone please skillchain with me."),
+    ("Anonymous GEO", "The luopan is fine where it is. No, I will not move it. Yes, it matters."),
+]
+
+ABYSSEA_QUOTES = [
+    ("Joachim", "Welcome to Abyssea, adventurer. The Dominion thanks you for your continued sacrifice."),
+    ("Joachim", "The Cruor flows freely here. Use it wisely — and spend it before you return. You cannot take it with you."),
+    ("Resistance Fighter", "Out here, time moves differently. Stay too long and you may not recognize the world you came from."),
+    ("Resistance Fighter", "The visitant limit is not a suggestion. I have seen what happens when it's ignored."),
+    ("Visitant NPC", "You smell of the outside world. That means you're either new or lucky. Either way, welcome."),
+    ("Abyssea Conflux", "Traverse point locked. This is as far as your judgment allows. For now."),
+    ("Primeval Brew Vendor", "One brew. One chance. Do not waste it on a placeholder."),
+    ("Dominion Soldier", "We do not speak of how many have come before you. The number is not encouraging."),
+    ("Cavernous Maw", "Entrance open. Timer started. Do not dawdle. Abyssea does not reward dawdling."),
+    ("Survivor NPC", "I came here for adventure. I stayed because I forgot what day it was. And then the week. And then the year."),
+    ("Abyssean NPC", "The atma you carry is the distilled essence of something that was once very hard to kill. Use it accordingly."),
+    ("Resistance NPC", "The lights in the sky are not stars. I stopped asking what they are. You should too."),
+    ("Emissary of the Veil", "Beyond this point the rules of your world do not apply. They were optional here to begin with."),
+    ("Dominion Tactician", "Provenance. Empyreal Paradox. Vunkerl. The names change. The difficulty does not."),
+    ("Abyssea Pilgrim", "I found what I was looking for out here. I am still not sure I wanted it."),
+]
+
+# ─────────────────────────────────────────────
+#  Seasonal Quote Pools
+# ─────────────────────────────────────────────
+
+STARLIGHT_QUOTES = [
+    ("Starlight Moogle", "Kupo! The Starlight Celebration fills even this moogle's heart with warmth, kupo!"),
+    ("Starlight Moogle", "Kupo! Santa Claus Moogle has been VERY busy this year. I am exhausted, kupo."),
+    ("Shantotto", "Oh ho ho! Even the great Shantotto takes a moment for Starlight! Oh ho ho!"),
+    ("Moogle", "Kupo! I wrapped your presents! I also peeked at them. They are wonderful, kupo."),
+    ("Iroha", "Even in a world threatened by darkness, the Starlight Celebration brings light. Hold onto that, adventurer."),
+    ("Lion", "Starlight in Vana'diel. Even pirates take the night off. ...Mostly."),
+    ("Prishe", "Don't get mushy on me. Just because it's Starlight doesn't mean the world stops needing saving."),
+]
+
+HARVEST_QUOTES = [
+    ("Spooky Moogle", "Kupo! The Harvest Festival is upon us! I put on a scary face, kupo! ...You cannot tell the difference, kupo."),
+    ("Shantotto", "Oh ho ho! Frightening costumes? How adorable. I am the most terrifying thing in Vana'diel already!"),
+    ("Diabolos", "You require no costume, adventurer. The darkness suits you naturally."),
+    ("Zeid", "Even in celebration, the shadows are long this time of year. Eyes open."),
+    ("Cait Sith", "Mrrrow... The veil thins at Harvest. Be careful what ye call across it."),
+    ("Moogle", "Kupo! A skeleton came to the door! I gave it candy! ...It was just a Galka in a costume, kupo. Probably."),
+    ("Fenrir", "The moon is full and hungry tonight. So am I."),
+]
+
+VALENTIONES_QUOTES = [
+    ("Valentione Moogle", "Kupo! Love is in the air of Vana'diel, kupo! Have you given chocolates to your adventuring companions, kupo?"),
+    ("Shantotto", "Oh ho ho! Valentione's Day! Even love cannot resist the great Shantotto!"),
+    ("Ulmia", "A song for someone you love never sounds wrong, no matter how many notes you miss."),
+    ("Lilisette", "Dance for someone today. Even if it's embarrassing. Especially if it's embarrassing."),
+    ("Carbuncle", "Ruby Light carries warmth as well as protection. Today, focus on the warmth."),
+    ("Aphmau", "An empress without someone to protect is just a title. Cherish the people around you."),
+    ("Moogle", "Kupo! I made chocolates for you, kupo! I also ate most of them. There is one left, kupo. It is slightly licked."),
+]
+
+# ─────────────────────────────────────────────
+#  Expansion Lookup (organized by expansion tag)
+# ─────────────────────────────────────────────
+
+_ZM_SPEAKERS  = {"Kam'lanaut", "Eald'narche", "Lion"}
+_COP_SPEAKERS = {"Prishe", "Selh'teus", "Nag'molada", "Ulmia", "Tenzen"}
+_TOAU_SPEAKERS = {"Aphmau", "Luzaf", "Shantotto", "Lehko Habhoka"}
+_WOTG_SPEAKERS = {"Lilisette", "Cait Sith", "Portia", "Lilith"}
+_SOA_SPEAKERS  = {"Arciela", "Ygnas", "Teodor"}
+_ROV_SPEAKERS  = {"Iroha", "Bahamut", "Altana", "Promathia"}
+
+EXPANSION_QUOTES: dict[str, list] = {
+    "zilart":   [(s, q) for s, q in NPC_STORY if s in _ZM_SPEAKERS],
+    "cop":      [(s, q) for s, q in NPC_STORY if s in _COP_SPEAKERS],
+    "toau":     [(s, q) for s, q in NPC_STORY if s in _TOAU_SPEAKERS],
+    "wotg":     [(s, q) for s, q in NPC_STORY if s in _WOTG_SPEAKERS],
+    "soa":      [(s, q) for s, q in NPC_STORY if s in _SOA_SPEAKERS],
+    "rov":      [(s, q) for s, q in NPC_STORY if s in _ROV_SPEAKERS],
+    "abyssea":  list(ABYSSEA_QUOTES),
+}
+
+# ─────────────────────────────────────────────
+#  Combined Pools
+# ─────────────────────────────────────────────
+
 ALL_QUOTES = (
-    NPC_STORY + BATTLE_CRIES + MOOGLE_QUIPS +
-    EMOTE_FLAVOR + AVATAR_QUOTES + NOTORIOUS_MONSTERS + CITY_FLAVOR
+    NPC_STORY + BATTLE_CRIES + MOOGLE_QUIPS + EMOTE_FLAVOR +
+    AVATAR_QUOTES + NOTORIOUS_MONSTERS + CITY_FLAVOR +
+    PLAYER_SAY + ABYSSEA_QUOTES
 )
 
+# Weighted pool: NMs and Abyssea appear less often (feel rare, like in-game)
+WEIGHTED_POOL = (
+    NPC_STORY      * 3 +
+    BATTLE_CRIES   * 3 +
+    MOOGLE_QUIPS   * 2 +
+    EMOTE_FLAVOR   * 2 +
+    AVATAR_QUOTES  * 2 +
+    NOTORIOUS_MONSTERS * 1 +
+    CITY_FLAVOR    * 2 +
+    PLAYER_SAY     * 2 +
+    ABYSSEA_QUOTES * 1
+)
 
-def get_random_quote() -> tuple[str, str]:
-    """Return a random (speaker, quote) tuple from the full pool."""
-    return random.choice(ALL_QUOTES)
+# ─────────────────────────────────────────────
+#  Helper Functions
+# ─────────────────────────────────────────────
+
+def get_seasonal_pool() -> list | None:
+    month = datetime.now().month
+    if month == 12:
+        return STARLIGHT_QUOTES
+    if month == 10:
+        return HARVEST_QUOTES
+    if month == 2:
+        return VALENTIONES_QUOTES
+    return None
 
 
 def get_quote_by_category(category: str) -> tuple[str, str]:
     categories = {
-        "npc": NPC_STORY,
-        "battle": BATTLE_CRIES,
-        "moogle": MOOGLE_QUIPS,
-        "emote": EMOTE_FLAVOR,
-        "avatar": AVATAR_QUOTES,
-        "nm": NOTORIOUS_MONSTERS,
-        "city": CITY_FLAVOR,
+        "npc":      NPC_STORY,
+        "battle":   BATTLE_CRIES,
+        "moogle":   MOOGLE_QUIPS,
+        "emote":    EMOTE_FLAVOR,
+        "avatar":   AVATAR_QUOTES,
+        "nm":       NOTORIOUS_MONSTERS,
+        "city":     CITY_FLAVOR,
+        "player":   PLAYER_SAY,
+        "abyssea":  ABYSSEA_QUOTES,
     }
     pool = categories.get(category.lower(), ALL_QUOTES)
     return random.choice(pool)
