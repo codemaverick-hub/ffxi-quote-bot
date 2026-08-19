@@ -48,9 +48,9 @@ KEYWORD_MAP: dict[str, list[str]] = {
 # ─────────────────────────────────────────────
 
 db = Database()
-channel_cooldowns:    dict[int, datetime] = {}   # channel_id -> last quote time
-active_guess_games:   dict[int, dict]     = {}   # channel_id -> game state
-voted_message_hashes: dict[int, str]      = {}   # message_id -> quote_hash
+channel_cooldowns:    dict[int, datetime] = {}
+active_guess_games:   dict[int, dict]     = {}
+voted_message_hashes: dict[int, str]      = {}
 
 # ─────────────────────────────────────────────
 #  Bot Setup
@@ -74,7 +74,6 @@ def get_hash(speaker: str, quote: str) -> str:
 
 
 async def get_guild_quote(guild_id: int) -> tuple[str, str]:
-    """Weighted, no-repeat quote selection."""
     seasonal = get_seasonal_pool()
     pool     = list(WEIGHTED_POOL)
     if seasonal:
@@ -83,7 +82,7 @@ async def get_guild_quote(guild_id: int) -> tuple[str, str]:
     recent   = await db.get_recent_hashes(guild_id)
     filtered = [(s, q) for s, q in pool if get_hash(s, q) not in recent]
     if not filtered:
-        filtered = pool  # fallback when all quotes exhausted
+        filtered = pool
 
     speaker, quote = random.choice(filtered)
     await db.add_recent_quote(guild_id, get_hash(speaker, quote))
@@ -108,13 +107,19 @@ def check_guess(guess: str, speaker: str) -> bool:
     return g == s or (len(g) >= 4 and s.startswith(g))
 
 
-async def send_quote(channel: discord.TextChannel, speaker: str, quote: str):
-    """Send a formatted quote with voting reactions and register it for the hash map."""
+def format_frequency(freq: float) -> str:
+    """Format a frequency float as a human-readable percentage string."""
+    pct = freq * 100
+    if pct < 1:
+        return f"{pct:.1f}%"
+    return f"{int(pct)}%"
+
+
+async def send_quote(channel: discord.abc.Messageable, speaker: str, quote: str):
     msg = await channel.send(format_quote(speaker, quote))
     h   = get_hash(speaker, quote)
     voted_message_hashes[msg.id] = h
     if len(voted_message_hashes) > 1000:
-        # Evict oldest entry to prevent unbounded growth
         oldest = next(iter(voted_message_hashes))
         del voted_message_hashes[oldest]
     await msg.add_reaction(VOTE_UP_EMOJI)
@@ -139,20 +144,20 @@ async def qotd_task():
         if now.hour != h or now.minute != m:
             continue
 
-        last = cfg.get("last_qotd_date")
+        last  = cfg.get("last_qotd_date")
         today = now.date()
         if last and last >= today:
-            continue  # already posted today
+            continue
 
         channel = bot.get_channel(cfg["qotd_channel_id"])
         if not channel:
             continue
 
-        guild_id      = cfg["guild_id"]
+        guild_id       = cfg["guild_id"]
         speaker, quote = await get_guild_quote(guild_id)
-        featured_uid  = await db.get_pending_linkshell_user(guild_id)
+        featured_uid   = await db.get_pending_linkshell_user(guild_id)
 
-        content  = f"🌅 **Quote of the Day — Vana'diel {now.strftime('%B %d')}**\n"
+        content = f"🌅 **Quote of the Day — Vana'diel {now.strftime('%B %d')}**\n"
         if featured_uid:
             content += f"*(Featured spot courtesy of <@{featured_uid}>)*\n"
         content += format_quote(speaker, quote)
@@ -191,24 +196,20 @@ async def on_message(message: discord.Message):
     content_lc = message.content.lower()
     config     = await db.get_server_config(guild_id)
 
-    # Always process active guess games regardless of other settings
     if channel_id in active_guess_games:
         if await _process_guess(message):
             await bot.process_commands(message)
-            return  # Don't fire another quote right after a win
+            return
 
-    # Skip blacklisted channels
     if is_blacklisted(config, channel_id):
         await bot.process_commands(message)
         return
 
-    # Honour quotes-channel restriction
     qc = config.get("quotes_channel_id")
     if qc and channel_id != qc:
         await bot.process_commands(message)
         return
 
-    # Keyword trigger (always fires if off cooldown, regardless of % setting)
     if off_cooldown(channel_id):
         for category, keywords in KEYWORD_MAP.items():
             if any(kw in content_lc for kw in keywords):
@@ -218,7 +219,6 @@ async def on_message(message: discord.Message):
                 await bot.process_commands(message)
                 return
 
-    # Random frequency trigger
     freq = config.get("message_frequency", 0.01)
     if random.random() < freq and off_cooldown(channel_id):
         speaker, quote = await get_guild_quote(guild_id)
@@ -229,15 +229,12 @@ async def on_message(message: discord.Message):
 
 
 async def _process_guess(message: discord.Message) -> bool:
-    """Returns True if the guess was correct and the game ended."""
     game = active_guess_games.get(message.channel.id)
     if not game:
         return False
-
     if not check_guess(message.content, game["speaker"]):
         return False
 
-    # ✅ Correct guess
     guild_id = message.guild.id
     user_id  = message.author.id
     await db.add_points(guild_id, user_id, GUESS_POINTS, correct=True)
@@ -304,17 +301,15 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.User):
     if user.bot or not reaction.message.guild:
         return
 
-    emoji      = str(reaction.emoji)
-    msg        = reaction.message
-    guild_id   = msg.guild.id
+    emoji    = str(reaction.emoji)
+    msg      = reaction.message
+    guild_id = msg.guild.id
 
-    # 📜 — react-to-quote
     if emoji == REACT_QUOTE_EMOJI:
         speaker, quote = await get_guild_quote(guild_id)
         await msg.channel.send(format_quote(speaker, quote))
         return
 
-    # 👍 / 👎 — vote on bot quote messages
     if emoji in (VOTE_UP_EMOJI, VOTE_DOWN_EMOJI) and msg.author == bot.user:
         q_hash = voted_message_hashes.get(msg.id)
         if q_hash:
@@ -338,15 +333,15 @@ async def ffxi_quote(interaction: discord.Interaction):
 @tree.command(name="ffxi_category", description="Get an FFXI quote from a specific category.")
 @app_commands.describe(category="Choose a quote category")
 @app_commands.choices(category=[
-    app_commands.Choice(name="NPC / Story Quotes",          value="npc"),
+    app_commands.Choice(name="NPC / Story Quotes",           value="npc"),
     app_commands.Choice(name="Battle Cries & Job Abilities", value="battle"),
-    app_commands.Choice(name="Moogle Quips",                value="moogle"),
-    app_commands.Choice(name="Player Emote Flavor",         value="emote"),
-    app_commands.Choice(name="Avatar & Summon Quotes",      value="avatar"),
-    app_commands.Choice(name="Notorious Monsters",          value="nm"),
-    app_commands.Choice(name="City & NPC Flavor",           value="city"),
-    app_commands.Choice(name="Player /say Flavor",          value="player"),
-    app_commands.Choice(name="Abyssea",                     value="abyssea"),
+    app_commands.Choice(name="Moogle Quips",                 value="moogle"),
+    app_commands.Choice(name="Player Emote Flavor",          value="emote"),
+    app_commands.Choice(name="Avatar & Summon Quotes",       value="avatar"),
+    app_commands.Choice(name="Notorious Monsters",           value="nm"),
+    app_commands.Choice(name="City & NPC Flavor",            value="city"),
+    app_commands.Choice(name="Player /say Flavor",           value="player"),
+    app_commands.Choice(name="Abyssea",                      value="abyssea"),
 ])
 async def ffxi_category(interaction: discord.Interaction, category: app_commands.Choice[str]):
     speaker, quote = get_quote_by_category(category.value)
@@ -356,13 +351,13 @@ async def ffxi_category(interaction: discord.Interaction, category: app_commands
 @tree.command(name="ffxi_expansion", description="Get an FFXI quote from a specific expansion.")
 @app_commands.describe(expansion="Choose an expansion")
 @app_commands.choices(expansion=[
-    app_commands.Choice(name="Rise of the Zilart",          value="zilart"),
-    app_commands.Choice(name="Chains of Promathia",         value="cop"),
-    app_commands.Choice(name="Treasures of Aht Urhgan",    value="toau"),
-    app_commands.Choice(name="Wings of the Goddess",        value="wotg"),
-    app_commands.Choice(name="Seekers of Adoulin",          value="soa"),
-    app_commands.Choice(name="Rhapsodies of Vana'diel",     value="rov"),
-    app_commands.Choice(name="Abyssea",                     value="abyssea"),
+    app_commands.Choice(name="Rise of the Zilart",       value="zilart"),
+    app_commands.Choice(name="Chains of Promathia",      value="cop"),
+    app_commands.Choice(name="Treasures of Aht Urhgan", value="toau"),
+    app_commands.Choice(name="Wings of the Goddess",     value="wotg"),
+    app_commands.Choice(name="Seekers of Adoulin",       value="soa"),
+    app_commands.Choice(name="Rhapsodies of Vana'diel",  value="rov"),
+    app_commands.Choice(name="Abyssea",                  value="abyssea"),
 ])
 async def ffxi_expansion(interaction: discord.Interaction, expansion: app_commands.Choice[str]):
     pool = EXPANSION_QUOTES.get(expansion.value)
@@ -394,12 +389,12 @@ async def ffxi_about(interaction: discord.Interaction):
         "City & NPC: ~22\nPlayer /say: ~21\nAbyssea: ~15\n**Total: ~370+**"
     ), inline=True)
     embed.add_field(name="⚙️ Server Settings", value=(
-        f"Message trigger: **{int(freq*100)}%**\n"
+        f"Message trigger: **{format_frequency(freq)}**\n"
         f"Quotes channel: {f'<#{qc}>' if qc else 'Any channel'}\n"
         f"QOTD channel: {f'<#{qotd_ch}> at {qotd_t} UTC' if qotd_ch else 'Not set'}\n"
         f"Blacklisted: {len(bl)} channel(s)\n"
         f"Seasonal pool: {'✅ Active' if seasonal else '—'}\n"
-        f"Channel cooldown: {CHANNEL_COOLDOWN//60} min"
+        f"Channel cooldown: {CHANNEL_COOLDOWN // 60} min"
     ), inline=True)
     embed.add_field(name="🎮 Commands", value=(
         "`/ffxi` · `/ffxi_category` · `/ffxi_expansion`\n"
@@ -426,7 +421,6 @@ async def ffxi_guess(interaction: discord.Interaction):
         )
         return
 
-    # Pick a quote with a named speaker
     pool = [(s, q) for s, q in ALL_QUOTES if s not in ("Adventurer",)]
     speaker, quote = random.choice(pool)
 
@@ -439,7 +433,7 @@ async def ffxi_guess(interaction: discord.Interaction):
         ),
         color=0xf0c060
     )
-    embed.set_footer(text="Partial names accepted if they're at least 4 characters and unambiguous.")
+    embed.set_footer(text="Partial names accepted if at least 4 characters and unambiguous.")
     await interaction.response.send_message(embed=embed)
 
     async def timeout():
@@ -524,7 +518,7 @@ async def bank_shop(interaction: discord.Interaction):
             value=item["description"],
             inline=False
         )
-    embed.set_footer(text="Items are fulfilled by server admins. Use /bank_pending to check status.")
+    embed.set_footer(text="Items fulfilled by server admins. Use /bank_pending to check status.")
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
@@ -546,8 +540,8 @@ async def bank_buy(interaction: discord.Interaction, item_id: int):
         )
         return
 
-    purchase_id  = await db.purchase_item(guild_id, user_id, item_id, item["name"], item["cost"])
-    new_balance  = await db.get_user_balance(guild_id, user_id)
+    purchase_id = await db.purchase_item(guild_id, user_id, item_id, item["name"], item["cost"])
+    new_balance = await db.get_user_balance(guild_id, user_id)
 
     await interaction.response.send_message(
         f"✅ **Purchase successful!**\n"
@@ -558,8 +552,7 @@ async def bank_buy(interaction: discord.Interaction, item_id: int):
         ephemeral=True
     )
 
-    # Notify admins in the quotes channel if set
-    config = await db.get_server_config(guild_id)
+    config    = await db.get_server_config(guild_id)
     notify_ch = interaction.guild.get_channel(config.get("quotes_channel_id") or 0)
     if notify_ch:
         await notify_ch.send(
@@ -588,15 +581,29 @@ async def set_quotes_channel(interaction: discord.Interaction, channel: discord.
     await interaction.response.send_message(msg, ephemeral=True)
 
 
-@tree.command(name="set_frequency", description="[Admin] Set the auto-quote message trigger frequency.")
-@app_commands.describe(percent="Chance per message in % (1–20)")
+@tree.command(name="set_frequency", description="[Admin] Set the auto-quote message trigger frequency (0.1% – 20%).")
+@app_commands.describe(percent="Chance per message as a percentage. Decimals allowed e.g. 0.5, 0.1")
 @admin_check()
-async def set_frequency(interaction: discord.Interaction, percent: int):
-    if not 1 <= percent <= 20:
-        await interaction.response.send_message("❌ Enter a value between 1 and 20.", ephemeral=True)
+async def set_frequency(interaction: discord.Interaction, percent: str):
+    try:
+        value = float(percent)
+    except ValueError:
+        await interaction.response.send_message(
+            "❌ Please enter a number e.g. `0.1`, `0.5`, `1`, `5`.", ephemeral=True
+        )
         return
-    await db.upsert_server_config(interaction.guild_id, message_frequency=percent / 100)
-    await interaction.response.send_message(f"✅ Message trigger set to **{percent}%**.", ephemeral=True)
+
+    if not 0.1 <= value <= 20:
+        await interaction.response.send_message(
+            "❌ Value must be between **0.1** and **20** (percent).", ephemeral=True
+        )
+        return
+
+    freq = value / 100
+    await db.upsert_server_config(interaction.guild_id, message_frequency=freq)
+    await interaction.response.send_message(
+        f"✅ Message trigger frequency set to **{format_frequency(freq)}** per message.", ephemeral=True
+    )
 
 
 @tree.command(name="set_qotd", description="[Admin] Set the Quote of the Day channel and post time.")
