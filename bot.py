@@ -23,15 +23,15 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 #  Constants
 # ─────────────────────────────────────────────
 
-CHANNEL_COOLDOWN  = 300
-GUESS_TIMEOUT     = 60
-GUESS_POINTS      = 10
-REACT_QUOTE_EMOJI = "📜"
-VOTE_UP_EMOJI     = "👍"
-VOTE_DOWN_EMOJI   = "👎"
-VERIFY_EMOJI      = "🔍"
-CONFIRM_EMOJI     = "✅"
-DISPUTE_EMOJI     = "❌"
+CHANNEL_COOLDOWN   = 300
+GUESS_TIMEOUT      = 60
+GUESS_POINTS       = 10
+REACT_QUOTE_EMOJI  = "📜"
+VOTE_UP_EMOJI      = "👍"
+VOTE_DOWN_EMOJI    = "👎"
+VERIFY_EMOJI       = "🔍"
+CONFIRM_EMOJI      = "✅"
+DISPUTE_EMOJI      = "❌"
 DEFAULT_MEME_RATIO = 0.15
 
 KEYWORD_MAP: dict[str, list[str]] = {
@@ -117,12 +117,7 @@ def format_frequency(freq: float) -> str:
 async def send_quote(channel: discord.abc.Messageable, speaker: str, quote: str, source: str = FAN):
     msg = await channel.send(format_quote(speaker, quote, source))
     h   = get_hash(speaker, quote)
-    voted_message_hashes[msg.id] = {
-        "hash":    h,
-        "source":  source,
-        "speaker": speaker,
-        "quote":   quote,
-    }
+    voted_message_hashes[msg.id] = {"hash": h, "source": source, "speaker": speaker, "quote": quote}
     if len(voted_message_hashes) > 1000:
         del voted_message_hashes[next(iter(voted_message_hashes))]
     await msg.add_reaction(VOTE_UP_EMOJI)
@@ -140,11 +135,16 @@ async def send_meme(channel: discord.abc.Messageable, meme: dict):
     await channel.send(embed=embed)
 
 
-async def auto_trigger(channel: discord.abc.Messageable, guild_id: int, config: dict):
+async def auto_trigger(channel: discord.abc.Messageable, guild_id: int, config: dict,
+                        keyword_category: str = None):
+    """Post a quote or meme. Uses keyword_category hint if provided."""
     memes      = await db.get_memes(guild_id)
     meme_ratio = config.get("meme_ratio", DEFAULT_MEME_RATIO)
     if memes and random.random() < meme_ratio:
         await send_meme(channel, random.choice(memes))
+    elif keyword_category:
+        speaker, quote, source = get_quote_by_category(keyword_category)
+        await send_quote(channel, speaker, quote, source)
     else:
         speaker, quote, source = await get_guild_quote(guild_id)
         await send_quote(channel, speaker, quote, source)
@@ -205,11 +205,13 @@ async def on_ready():
 async def on_message(message: discord.Message):
     if message.author.bot or not message.guild:
         return
+
     guild_id   = message.guild.id
     channel_id = message.channel.id
     content_lc = message.content.lower()
     config     = await db.get_server_config(guild_id)
 
+    # Always process active guess games
     if channel_id in active_guess_games:
         if await _process_guess(message):
             await bot.process_commands(message)
@@ -224,18 +226,20 @@ async def on_message(message: discord.Message):
         await bot.process_commands(message)
         return
 
-    if off_cooldown(channel_id):
+    # ── Frequency gate applies to ALL triggers ──────────────────────────────
+    # Keyword hits influence WHAT quote shows, but frequency controls WHETHER
+    # anything shows at all. This ensures set_frequency is respected always.
+    freq = config.get("message_frequency", 0.01)
+
+    if off_cooldown(channel_id) and random.random() < freq:
+        # Check for keyword match to pick a smarter category
+        matched_category = None
         for category, keywords in KEYWORD_MAP.items():
             if any(kw in content_lc for kw in keywords):
-                speaker, quote, source = get_quote_by_category(category)
-                await send_quote(message.channel, speaker, quote, source)
-                set_cooldown(channel_id)
-                await bot.process_commands(message)
-                return
+                matched_category = category
+                break
 
-    freq = config.get("message_frequency", 0.01)
-    if random.random() < freq and off_cooldown(channel_id):
-        await auto_trigger(message.channel, guild_id, config)
+        await auto_trigger(message.channel, guild_id, config, matched_category)
         set_cooldown(channel_id)
 
     await bot.process_commands(message)
@@ -303,18 +307,15 @@ async def on_member_join(member: discord.Member):
 async def on_reaction_add(reaction: discord.Reaction, user: discord.User):
     if user.bot or not reaction.message.guild:
         return
-
     emoji    = str(reaction.emoji)
     msg      = reaction.message
     guild_id = msg.guild.id
 
-    # 📜 react-to-quote (works on any message)
     if emoji == REACT_QUOTE_EMOJI:
         speaker, quote, source = await get_guild_quote(guild_id)
         await msg.channel.send(format_quote(speaker, quote, source))
         return
 
-    # All remaining reactions only apply to bot messages
     if msg.author != bot.user:
         return
 
@@ -327,69 +328,48 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.User):
     speaker = data["speaker"]
     quote   = data["quote"]
 
-    # 👍/👎 quality votes
     if emoji in (VOTE_UP_EMOJI, VOTE_DOWN_EMOJI):
         await db.add_vote(guild_id, q_hash, emoji == VOTE_UP_EMOJI)
         return
 
-    # 🔍 show source info + instructions
     if emoji == VERIFY_EMOJI:
         counts = await db.get_verification_counts(q_hash, guild_id)
         await db.ensure_verification_record(q_hash, guild_id, speaker, quote, source)
-
         source_explanations = {
-            "📖 Game Dialogue": (
-                "This quote was scraped from FFXI fan documentation or wiki sources. "
-                "It may be paraphrased or slightly inaccurate."
-            ),
-            "✍️ Fan Written": (
-                "This quote was written in the character's style by the bot author. "
-                "It is not a direct transcript from the game."
-            ),
+            "📖 Game Dialogue": "This quote was sourced from confirmed FFXI in-game text or community-verified transcripts.",
+            "✍️ Fan Written": "This quote was written in the character's style by the bot author. It is not a direct game transcript.",
             "😄 Community": "This is community-created content — a meme, joke, or fan creation.",
         }
         explanation = source_explanations.get(source, "Source unknown.")
-
-        confirmed = counts["confirmed"]
-        disputed  = counts["disputed"]
-
+        confirmed, disputed = counts["confirmed"], counts["disputed"]
         if confirmed >= 3:
-            community_status = f"✅ **Community verified** by {confirmed} members"
+            status = f"✅ **Community verified** by {confirmed} members"
         elif disputed > confirmed and disputed >= 2:
-            community_status = f"⚠️ **Source disputed** by {disputed} members ({confirmed} confirmed)"
+            status = f"⚠️ **Source disputed** ({disputed} disputed · {confirmed} confirmed)"
         elif confirmed > 0 or disputed > 0:
-            community_status = f"🔍 {confirmed} confirmed · {disputed} disputed"
+            status = f"🔍 {confirmed} confirmed · {disputed} disputed"
         else:
-            community_status = "🔍 Not yet verified by the community"
-
+            status = "🔍 Not yet verified by the community"
         embed = discord.Embed(
-            title="🔍 Source Information",
-            color=0x7b5ea7,
+            title="🔍 Source Information", color=0x7b5ea7,
             description=(
-                f"**Speaker:** {speaker}\n"
-                f"**Source Tag:** {source}\n\n"
-                f"{explanation}\n\n"
-                f"{community_status}\n\n"
+                f"**Speaker:** {speaker}\n**Source Tag:** {source}\n\n{explanation}\n\n{status}\n\n"
                 f"**React on the original message to vote:**\n"
-                f"✅ — Confirm this source tag is accurate\n"
-                f"❌ — Dispute this source tag"
+                f"✅ — Confirm this source tag is accurate\n❌ — Dispute this source tag"
             )
         )
-        embed.set_footer(text="Only you can see this message. It will disappear in 30 seconds.")
+        embed.set_footer(text="Only you can see this. Disappears in 30 seconds.")
         try:
-            await msg.channel.send(embed=embed, delete_after=30,
-                                   reference=msg, mention_author=False)
+            await msg.channel.send(embed=embed, delete_after=30, reference=msg, mention_author=False)
         except Exception:
             pass
         return
 
-    # ✅ confirm source
     if emoji == CONFIRM_EMOJI:
         await db.ensure_verification_record(q_hash, guild_id, speaker, quote, source)
         await db.add_verification(q_hash, guild_id, is_confirm=True)
         return
 
-    # ❌ dispute source
     if emoji == DISPUTE_EMOJI:
         await db.ensure_verification_record(q_hash, guild_id, speaker, quote, source)
         await db.add_verification(q_hash, guild_id, is_confirm=False)
@@ -404,10 +384,7 @@ async def ffxi_quote(interaction: discord.Interaction):
     speaker, quote, source = await get_guild_quote(interaction.guild_id)
     await interaction.response.send_message(format_quote(speaker, quote, source))
     sent = await interaction.original_response()
-    voted_message_hashes[sent.id] = {
-        "hash": get_hash(speaker, quote), "source": source,
-        "speaker": speaker, "quote": quote,
-    }
+    voted_message_hashes[sent.id] = {"hash": get_hash(speaker, quote), "source": source, "speaker": speaker, "quote": quote}
     await sent.add_reaction(VOTE_UP_EMOJI)
     await sent.add_reaction(VOTE_DOWN_EMOJI)
     await sent.add_reaction(VERIFY_EMOJI)
@@ -468,6 +445,37 @@ async def ffxi_meme(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 
+@tree.command(name="ffxi_sources", description="Show community source verification stats.")
+async def ffxi_sources(interaction: discord.Interaction):
+    disputed = await db.get_disputed_quotes(interaction.guild_id)
+    verified = await db.get_verified_quotes(interaction.guild_id)
+    embed = discord.Embed(
+        title="🔍 Source Verification Report", color=0x7b5ea7,
+        description=(
+            "Community votes on quote accuracy.\nReact 🔍 on any quote to see source info and vote.\n\n"
+            "📖 Game Dialogue — sourced from in-game text\n"
+            "✍️ Fan Written — written in character by bot author\n"
+            "😄 Community — memes and fan content"
+        )
+    )
+    if verified:
+        embed.add_field(
+            name="✅ Community Verified (3+ votes)",
+            value="\n".join(f"✅ **{q['speaker']}** — {q['source_tag']} ({q['confirmed']} confirmed)" for q in verified[:8]),
+            inline=False
+        )
+    if disputed:
+        embed.add_field(
+            name="⚠️ Disputed Sources",
+            value="\n".join(f"⚠️ **{q['speaker']}** — {q['source_tag']} ({q['disputed']} disputed · {q['confirmed']} confirmed)" for q in disputed[:8]),
+            inline=False
+        )
+    if not verified and not disputed:
+        embed.add_field(name="No votes yet", value="React 🔍 on any quote to get started!", inline=False)
+    embed.set_footer(text="3+ confirmations = Verified • More disputes than confirms = Disputed")
+    await interaction.response.send_message(embed=embed)
+
+
 @tree.command(name="ffxi_about", description="Show bot info, quote counts, and current server settings.")
 async def ffxi_about(interaction: discord.Interaction):
     config   = await db.get_server_config(interaction.guild_id)
@@ -479,17 +487,13 @@ async def ffxi_about(interaction: discord.Interaction):
     bl       = config.get("blacklisted_channels") or []
     seasonal = get_seasonal_pool()
     memes    = await db.get_memes(interaction.guild_id)
-
-    embed = discord.Embed(
-        title="📜 Vana'diel Herald — Bot Info",
-        color=0x7b5ea7,
-        description="Authentic FFXI quotes delivered to your Discord server."
-    )
+    embed = discord.Embed(title="📜 Vana'diel Herald — Bot Info", color=0x7b5ea7,
+                          description="Authentic FFXI quotes delivered to your Discord server.")
     embed.add_field(name="📊 Quote Pool", value=(
-        "NPC / Story: ~65 ✍️\nBattle Cries: ~95 ✍️\nMoogle Quips: ~22 ✍️\n"
+        "NPC / Story: ~75 📖✍️\nBattle Cries: ~95 ✍️\nMoogle Quips: ~30 📖✍️\n"
         "Emote Flavor: ~26 ✍️\nAvatar & Summon: ~80 ✍️\nNMs: ~25 ✍️\n"
-        "City & NPC: ~22 ✍️\nPlayer /say: ~21 ✍️\nAbyssea: ~15 ✍️\n"
-        f"Memes: **{len(memes)}** 😄\n**Total: ~370+ quotes**"
+        "City & NPC: ~35 📖✍️\nPlayer /say: ~21 ✍️\nAbyssea: ~15 ✍️\n"
+        f"Memes: **{len(memes)}** 😄\n**Total: ~400+**"
     ), inline=True)
     embed.add_field(name="⚙️ Server Settings", value=(
         f"Message trigger: **{format_frequency(freq)}**\n"
@@ -497,68 +501,15 @@ async def ffxi_about(interaction: discord.Interaction):
         f"Quotes channel: {f'<#{qc}>' if qc else 'Any channel'}\n"
         f"QOTD: {f'<#{qotd_ch}> at {qotd_t} UTC' if qotd_ch else 'Not set'}\n"
         f"Blacklisted: {len(bl)} channel(s)\n"
-        f"Seasonal: {'✅ Active' if seasonal else '—'}"
+        f"Seasonal: {'✅ Active' if seasonal else '—'}\n"
+        f"Cooldown: {CHANNEL_COOLDOWN//60} min per channel"
     ), inline=True)
     embed.add_field(name="🏷️ Source Tags", value=(
         "📖 Game Dialogue — confirmed in-game text\n"
         "✍️ Fan Written — written in character\n"
-        "😄 Community — memes & community content\n\n"
-        "React 🔍 on any quote to see its source info.\n"
-        "React ✅/❌ to confirm or dispute a source."
+        "😄 Community — memes & fan content\n\n"
+        "React 🔍 on quotes to see source + vote ✅/❌"
     ), inline=False)
-    embed.add_field(name="🎮 Commands", value=(
-        "`/ffxi` · `/ffxi_category` · `/ffxi_expansion`\n"
-        "`/ffxi_meme` · `/ffxi_guess` · `/ffxi_sources`\n"
-        "`/leaderboard` · `/bank_balance` · `/bank_shop`\n"
-        "React 📜 on any message for a random quote"
-    ), inline=False)
-    await interaction.response.send_message(embed=embed)
-
-
-@tree.command(name="ffxi_sources", description="Show community source verification stats.")
-async def ffxi_sources(interaction: discord.Interaction):
-    disputed = await db.get_disputed_quotes(interaction.guild_id)
-    verified = await db.get_verified_quotes(interaction.guild_id)
-
-    embed = discord.Embed(
-        title="🔍 Source Verification Report",
-        color=0x7b5ea7,
-        description=(
-            "Community votes on quote source accuracy.\n"
-            "React 🔍 on any quote to see its source and vote.\n\n"
-            "**Source tags:**\n"
-            "📖 Game Dialogue — scraped from wiki/docs\n"
-            "✍️ Fan Written — written in character by bot author\n"
-            "😄 Community — memes and fan content"
-        )
-    )
-
-    if verified:
-        lines = []
-        for q in verified[:8]:
-            lines.append(
-                f"✅ **{q['speaker']}** — {q['source_tag']} "
-                f"({q['confirmed']} confirmed)"
-            )
-        embed.add_field(name="✅ Community Verified (3+ votes)", value="\n".join(lines), inline=False)
-
-    if disputed:
-        lines = []
-        for q in disputed[:8]:
-            lines.append(
-                f"⚠️ **{q['speaker']}** — {q['source_tag']} "
-                f"({q['disputed']} disputed · {q['confirmed']} confirmed)"
-            )
-        embed.add_field(name="⚠️ Disputed Sources", value="\n".join(lines), inline=False)
-
-    if not verified and not disputed:
-        embed.add_field(
-            name="No votes yet",
-            value="React 🔍 on any quote to see source info and cast a verification vote!",
-            inline=False
-        )
-
-    embed.set_footer(text="3+ confirmations = Verified • More disputes than confirms = Disputed")
     await interaction.response.send_message(embed=embed)
 
 # ─────────────────────────────────────────────
@@ -569,19 +520,13 @@ async def ffxi_sources(interaction: discord.Interaction):
 async def ffxi_guess(interaction: discord.Interaction):
     cid = interaction.channel_id
     if cid in active_guess_games:
-        await interaction.response.send_message(
-            "⚔️ A game is already running here! Type your guess as a message.", ephemeral=True
-        )
+        await interaction.response.send_message("⚔️ A game is already running here!", ephemeral=True)
         return
     pool           = [(s, q) for s, q, _ in ALL_QUOTES if s not in ("Adventurer",)]
     speaker, quote = random.choice(pool)
     embed = discord.Embed(
         title="🎲 Guess the Speaker!",
-        description=(
-            f'*"{quote}"*\n\n'
-            f"**Who said this?** Type your answer in this channel!\n"
-            f"⏱ **{GUESS_TIMEOUT} seconds** · Prize: **{GUESS_POINTS} gil** 🪙"
-        ),
+        description=(f'*"{quote}"*\n\n**Who said this?** Type your answer!\n⏱ **{GUESS_TIMEOUT}s** · Prize: **{GUESS_POINTS} gil** 🪙'),
         color=0xf0c060
     )
     embed.set_footer(text="Partial names accepted if at least 4 characters.")
@@ -591,32 +536,23 @@ async def ffxi_guess(interaction: discord.Interaction):
         await asyncio.sleep(GUESS_TIMEOUT)
         if cid in active_guess_games:
             del active_guess_games[cid]
-            await interaction.channel.send(
-                f"⏰ Time's up! The speaker was **{speaker}**. Better luck next time, kupo!"
-            )
+            await interaction.channel.send(f"⏰ Time's up! The speaker was **{speaker}**. Kupo!")
 
-    task = asyncio.create_task(timeout())
-    active_guess_games[cid] = {"speaker": speaker, "quote": quote, "task": task}
+    active_guess_games[cid] = {"speaker": speaker, "quote": quote, "task": asyncio.create_task(timeout())}
 
 # ─────────────────────────────────────────────
 #  Leaderboard
 # ─────────────────────────────────────────────
 
-@tree.command(name="leaderboard", description="Show the top Guess the Speaker scorers and their gil balance.")
+@tree.command(name="leaderboard", description="Show the top Guess the Speaker scorers.")
 async def leaderboard(interaction: discord.Interaction):
     rows = await db.get_leaderboard(interaction.guild_id)
     if not rows:
-        await interaction.response.send_message("No scores yet! Start a game with `/ffxi_guess`.", ephemeral=True)
+        await interaction.response.send_message("No scores yet! Start with `/ffxi_guess`.", ephemeral=True)
         return
     medals = ["🥇", "🥈", "🥉"]
-    lines  = []
-    for i, row in enumerate(rows):
-        medal  = medals[i] if i < 3 else f"**{i+1}.**"
-        member = interaction.guild.get_member(row["user_id"])
-        name   = member.display_name if member else f"User {row['user_id']}"
-        lines.append(f"{medal} **{name}** — {row['points']} gil 🪙 · {row['correct_guesses']} correct")
-    embed = discord.Embed(title="🏆 Vana'diel Herald Leaderboard", color=0xf0c060)
-    embed.description = "\n".join(lines)
+    lines  = [f"{medals[i] if i<3 else f'**{i+1}.**'} **{(interaction.guild.get_member(r['user_id']) or type('', (), {'display_name': f'User {r[\"user_id\"]}'})).display_name}** — {r['points']} gil 🪙 · {r['correct_guesses']} correct" for i, r in enumerate(rows)]
+    embed = discord.Embed(title="🏆 Vana'diel Herald Leaderboard", color=0xf0c060, description="\n".join(lines))
     embed.set_footer(text="Earn gil by winning Guess the Speaker. Spend it at /bank_shop.")
     await interaction.response.send_message(embed=embed)
 
@@ -630,9 +566,8 @@ async def bank_balance(interaction: discord.Interaction):
     score   = await db.get_user_score(interaction.guild_id, interaction.user.id)
     correct = score.get("correct_guesses", 0) if score else 0
     await interaction.response.send_message(
-        f"🪙 **{interaction.user.display_name}'s Account**\n"
-        f"Balance: **{balance} gil**\nCorrect guesses: **{correct}**\n*Spend your gil at `/bank_shop`!*",
-        ephemeral=True
+        f"🪙 **{interaction.user.display_name}'s Account**\nBalance: **{balance} gil**\n"
+        f"Correct guesses: **{correct}**", ephemeral=True
     )
 
 
@@ -641,55 +576,39 @@ async def bank_shop(interaction: discord.Interaction):
     items   = await db.get_bank_items()
     balance = await db.get_user_balance(interaction.guild_id, interaction.user.id)
     if not items:
-        await interaction.response.send_message(
-            "The Guild Bank is empty. Admins can add items with `/bank_add_item`.", ephemeral=True
-        )
+        await interaction.response.send_message("The Guild Bank shop is currently empty. Check back soon!", ephemeral=True)
         return
-    embed = discord.Embed(
-        title="🏦 Guild Bank — Shop",
-        description=f"Your balance: **{balance} gil** 🪙\nUse `/bank_buy <item_id>` to purchase.",
-        color=0xc8821a
-    )
+    embed = discord.Embed(title="🏦 Guild Bank — Shop",
+                          description=f"Your balance: **{balance} gil** 🪙\nUse `/bank_buy <item_id>` to purchase.",
+                          color=0xc8821a)
     for item in items:
-        can_afford = "✅" if balance >= item["cost"] else "❌"
-        embed.add_field(
-            name=f"`#{item['id']}` {item['name']} — {item['cost']} gil {can_afford}",
-            value=item["description"], inline=False
-        )
-    embed.set_footer(text="Items fulfilled by admins.")
+        embed.add_field(name=f"`#{item['id']}` {item['name']} — {item['cost']} gil {'✅' if balance >= item['cost'] else '❌'}",
+                        value=item["description"], inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 @tree.command(name="bank_buy", description="Purchase an item from the Guild Bank.")
-@app_commands.describe(item_id="The item ID shown in /bank_shop")
+@app_commands.describe(item_id="The item ID from /bank_shop")
 async def bank_buy(interaction: discord.Interaction, item_id: int):
-    guild_id = interaction.guild_id
-    user_id  = interaction.user.id
-    item     = await db.get_bank_item(item_id)
+    guild_id, user_id = interaction.guild_id, interaction.user.id
+    item = await db.get_bank_item(item_id)
     if not item or not item["active"]:
         await interaction.response.send_message("Item not found or unavailable.", ephemeral=True)
         return
     balance = await db.get_user_balance(guild_id, user_id)
     if balance < item["cost"]:
-        await interaction.response.send_message(
-            f"❌ Not enough gil! You have **{balance}** but need **{item['cost']}**.", ephemeral=True
-        )
+        await interaction.response.send_message(f"❌ Need **{item['cost']} gil**, you have **{balance}**.", ephemeral=True)
         return
     purchase_id = await db.purchase_item(guild_id, user_id, item_id, item["name"], item["cost"])
     new_balance = await db.get_user_balance(guild_id, user_id)
     await interaction.response.send_message(
-        f"✅ **Purchase successful!**\nItem: **{item['name']}**\nCost: **{item['cost']} gil**\n"
-        f"Remaining: **{new_balance} gil**\n*Purchase ID: `#{purchase_id}`*",
+        f"✅ Purchased **{item['name']}** for **{item['cost']} gil**!\nRemaining: **{new_balance} gil** · ID `#{purchase_id}`",
         ephemeral=True
     )
     config    = await db.get_server_config(guild_id)
     notify_ch = interaction.guild.get_channel(config.get("quotes_channel_id") or 0)
     if notify_ch:
-        await notify_ch.send(
-            f"🏦 **New Guild Bank Purchase!**\n"
-            f"{interaction.user.mention} purchased **{item['name']}** (ID `#{purchase_id}`).\n"
-            f"*Admins: use `/bank_fulfill {purchase_id}` to complete.*"
-        )
+        await notify_ch.send(f"🏦 {interaction.user.mention} purchased **{item['name']}** (`#{purchase_id}`). Admins: `/bank_fulfill {purchase_id}`")
 
 # ─────────────────────────────────────────────
 #  Admin Commands
@@ -706,39 +625,37 @@ def admin_check():
 @admin_check()
 async def set_quotes_channel(interaction: discord.Interaction, channel: discord.TextChannel = None):
     await db.upsert_server_config(interaction.guild_id, quotes_channel_id=channel.id if channel else None)
-    msg = f"✅ Quotes channel set to {channel.mention}." if channel else "✅ Quotes channel cleared."
-    await interaction.response.send_message(msg, ephemeral=True)
+    await interaction.response.send_message(f"✅ Quotes channel {'set to ' + channel.mention if channel else 'cleared'}.", ephemeral=True)
 
 
-@tree.command(name="set_frequency", description="[Admin] Set the auto-quote trigger frequency (0.1% – 20%).")
+@tree.command(name="set_frequency", description="[Admin] Set the auto-quote trigger frequency (0.1%–20%).")
 @app_commands.describe(percent="Chance per message as a percentage. Decimals allowed e.g. 0.5, 0.1")
 @admin_check()
 async def set_frequency(interaction: discord.Interaction, percent: str):
     try:
         value = float(percent)
     except ValueError:
-        await interaction.response.send_message("❌ Enter a number e.g. `0.1`, `0.5`, `1`, `5`.", ephemeral=True)
+        await interaction.response.send_message("❌ Enter a number e.g. `0.1`, `0.5`, `1`.", ephemeral=True)
         return
     if not 0.1 <= value <= 20:
         await interaction.response.send_message("❌ Value must be between **0.1** and **20**.", ephemeral=True)
         return
     freq = value / 100
     await db.upsert_server_config(interaction.guild_id, message_frequency=freq)
-    await interaction.response.send_message(
-        f"✅ Message trigger set to **{format_frequency(freq)}** per message.", ephemeral=True
-    )
+    await interaction.response.send_message(f"✅ Frequency set to **{format_frequency(freq)}** per message.", ephemeral=True)
 
 
 @tree.command(name="set_meme_ratio", description="[Admin] Set how often memes appear vs quotes (0–50%).")
-@app_commands.describe(percent="Percentage of auto-triggers that will show a meme (0–50)")
+@app_commands.describe(percent="Percentage of auto-triggers that show a meme (0–50)")
 @admin_check()
 async def set_meme_ratio(interaction: discord.Interaction, percent: int):
     if not 0 <= percent <= 50:
-        await interaction.response.send_message("❌ Value must be between 0 and 50.", ephemeral=True)
+        await interaction.response.send_message("❌ Value must be 0–50.", ephemeral=True)
         return
     await db.upsert_server_config(interaction.guild_id, meme_ratio=percent / 100)
-    msg = "✅ Memes disabled in auto-triggers." if percent == 0 else f"✅ Meme ratio set to **{percent}%**."
-    await interaction.response.send_message(msg, ephemeral=True)
+    await interaction.response.send_message(
+        f"✅ {'Memes disabled.' if percent == 0 else f'Meme ratio set to **{percent}%**.'}", ephemeral=True
+    )
 
 
 @tree.command(name="set_qotd", description="[Admin] Set the Quote of the Day channel and time.")
@@ -749,12 +666,10 @@ async def set_qotd(interaction: discord.Interaction, channel: discord.TextChanne
         h, m = map(int, time.split(":"))
         assert 0 <= h <= 23 and 0 <= m <= 59
     except Exception:
-        await interaction.response.send_message("❌ Invalid time. Use HH:MM (e.g. 09:00).", ephemeral=True)
+        await interaction.response.send_message("❌ Use HH:MM format (e.g. 09:00).", ephemeral=True)
         return
     await db.upsert_server_config(interaction.guild_id, qotd_channel_id=channel.id, qotd_time=time)
-    await interaction.response.send_message(
-        f"✅ QOTD set to {channel.mention} at **{time} UTC** daily.", ephemeral=True
-    )
+    await interaction.response.send_message(f"✅ QOTD set to {channel.mention} at **{time} UTC**.", ephemeral=True)
 
 
 @tree.command(name="blacklist_channel", description="[Admin] Stop the bot from posting in a channel.")
@@ -770,20 +685,18 @@ async def blacklist_channel(interaction: discord.Interaction, channel: discord.T
 @admin_check()
 async def unblacklist_channel(interaction: discord.Interaction, channel: discord.TextChannel):
     await db.remove_blacklist_channel(interaction.guild_id, channel.id)
-    await interaction.response.send_message(f"✅ {channel.mention} removed from blacklist.", ephemeral=True)
+    await interaction.response.send_message(f"✅ {channel.mention} unblacklisted.", ephemeral=True)
 
 
 @tree.command(name="meme_add", description="[Admin] Add a meme image URL to the pool.")
-@app_commands.describe(url="Direct image URL (imgur, etc.)", title="Optional title for the meme")
+@app_commands.describe(url="Direct image URL", title="Optional title")
 @admin_check()
 async def meme_add(interaction: discord.Interaction, url: str, title: str = None):
     if not url.startswith("http"):
-        await interaction.response.send_message("❌ URL must start with http:// or https://", ephemeral=True)
+        await interaction.response.send_message("❌ URL must start with http(s)://", ephemeral=True)
         return
     meme_id = await db.add_meme(interaction.guild_id, url, title)
-    await interaction.response.send_message(
-        f"✅ Meme added! (ID `#{meme_id}`)\nTitle: **{title or 'Untitled'}**\nURL: {url}", ephemeral=True
-    )
+    await interaction.response.send_message(f"✅ Meme added! (ID `#{meme_id}`) — **{title or 'Untitled'}**", ephemeral=True)
 
 
 @tree.command(name="meme_remove", description="[Admin] Remove a meme from the pool.")
@@ -791,10 +704,7 @@ async def meme_add(interaction: discord.Interaction, url: str, title: str = None
 @admin_check()
 async def meme_remove(interaction: discord.Interaction, meme_id: int):
     success = await db.remove_meme(meme_id, interaction.guild_id)
-    if success:
-        await interaction.response.send_message(f"✅ Meme `#{meme_id}` removed.", ephemeral=True)
-    else:
-        await interaction.response.send_message(f"❌ Meme `#{meme_id}` not found.", ephemeral=True)
+    await interaction.response.send_message(f"{'✅ Removed' if success else '❌ Not found'} meme `#{meme_id}`.", ephemeral=True)
 
 
 @tree.command(name="meme_list", description="[Admin] List all memes in the pool.")
@@ -802,17 +712,12 @@ async def meme_remove(interaction: discord.Interaction, meme_id: int):
 async def meme_list(interaction: discord.Interaction):
     memes = await db.get_meme_list(interaction.guild_id)
     if not memes:
-        await interaction.response.send_message("No memes added yet. Use `/meme_add <url>`.", ephemeral=True)
+        await interaction.response.send_message("No memes yet. Use `/meme_add <url>`.", ephemeral=True)
         return
     embed = discord.Embed(title="😄 Meme Pool", color=0x7b5ea7)
     for m in memes[:20]:
-        status = "✅" if m["active"] else "❌"
-        embed.add_field(
-            name=f"`#{m['id']}` {status} {m['title'] or 'Untitled'}",
-            value=m["url"][:60] + "..." if len(m["url"]) > 60 else m["url"],
-            inline=False
-        )
-    embed.set_footer(text="Use /meme_remove <id> to remove a meme.")
+        embed.add_field(name=f"`#{m['id']}` {'✅' if m['active'] else '❌'} {m['title'] or 'Untitled'}",
+                        value=m["url"][:60] + "..." if len(m["url"]) > 60 else m["url"], inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
@@ -821,12 +726,10 @@ async def meme_list(interaction: discord.Interaction):
 @admin_check()
 async def bank_add_item(interaction: discord.Interaction, name: str, description: str, cost: int):
     if cost <= 0:
-        await interaction.response.send_message("❌ Cost must be greater than 0.", ephemeral=True)
+        await interaction.response.send_message("❌ Cost must be > 0.", ephemeral=True)
         return
     item_id = await db.add_bank_item(name, description, cost)
-    await interaction.response.send_message(
-        f"✅ Added **{name}** to the shop for **{cost} gil** (ID `#{item_id}`).", ephemeral=True
-    )
+    await interaction.response.send_message(f"✅ Added **{name}** for **{cost} gil** (ID `#{item_id}`).", ephemeral=True)
 
 
 @tree.command(name="bank_remove_item", description="[Admin] Remove an item from the Guild Bank shop.")
@@ -848,11 +751,8 @@ async def bank_pending(interaction: discord.Interaction):
     for p in purchases:
         member = interaction.guild.get_member(p["user_id"])
         name   = member.display_name if member else f"User {p['user_id']}"
-        embed.add_field(
-            name=f"`#{p['id']}` {p['item_name']} — {p['cost']} gil",
-            value=f"**{name}** · {p['purchased_at'].strftime('%Y-%m-%d %H:%M UTC')}\n`/bank_fulfill {p['id']}`",
-            inline=False
-        )
+        embed.add_field(name=f"`#{p['id']}` {p['item_name']} — {p['cost']} gil",
+                        value=f"**{name}** · {p['purchased_at'].strftime('%Y-%m-%d %H:%M UTC')}\n`/bank_fulfill {p['id']}`", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
@@ -862,20 +762,15 @@ async def bank_pending(interaction: discord.Interaction):
 async def bank_fulfill(interaction: discord.Interaction, purchase_id: int):
     purchase = await db.fulfill_purchase(purchase_id, interaction.guild_id)
     if not purchase:
-        await interaction.response.send_message("❌ Purchase not found or already fulfilled.", ephemeral=True)
+        await interaction.response.send_message("❌ Not found or already fulfilled.", ephemeral=True)
         return
     member = interaction.guild.get_member(purchase["user_id"])
     await interaction.response.send_message(
-        f"✅ Purchase `#{purchase_id}` (**{purchase['item_name']}**) fulfilled"
-        f"{f' for {member.mention}' if member else ''}.", ephemeral=True
+        f"✅ Purchase `#{purchase_id}` (**{purchase['item_name']}**) fulfilled{f' for {member.mention}' if member else ''}.", ephemeral=True
     )
     if member:
         try:
-            await member.send(
-                f"🏦 **Guild Bank — Order Fulfilled!**\n"
-                f"Your purchase of **{purchase['item_name']}** has been fulfilled by the admins of "
-                f"**{interaction.guild.name}**. Kupo!"
-            )
+            await member.send(f"🏦 Your purchase of **{purchase['item_name']}** has been fulfilled by **{interaction.guild.name}**. Kupo!")
         except discord.Forbidden:
             pass
 
@@ -886,10 +781,8 @@ async def bank_fulfill(interaction: discord.Interaction, purchase_id: int):
 async def give_points(interaction: discord.Interaction, user: discord.Member, points: int):
     await db.add_points(interaction.guild_id, user.id, points)
     balance = await db.get_user_balance(interaction.guild_id, user.id)
-    action  = "Gave" if points >= 0 else "Deducted"
     await interaction.response.send_message(
-        f"✅ {action} **{abs(points)} gil** {'to' if points >= 0 else 'from'} {user.mention}. "
-        f"New balance: **{balance} gil**.", ephemeral=True
+        f"✅ {'Gave' if points >= 0 else 'Deducted'} **{abs(points)} gil** {'to' if points >= 0 else 'from'} {user.mention}. Balance: **{balance} gil**.", ephemeral=True
     )
 
 # ─────────────────────────────────────────────
