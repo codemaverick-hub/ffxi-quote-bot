@@ -551,7 +551,12 @@ async def leaderboard(interaction: discord.Interaction):
         await interaction.response.send_message("No scores yet! Start with `/ffxi_guess`.", ephemeral=True)
         return
     medals = ["🥇", "🥈", "🥉"]
-    lines  = [f"{medals[i] if i<3 else f'**{i+1}.**'} **{(interaction.guild.get_member(r['user_id']) or type('', (), {'display_name': f'User {r[\"user_id\"]}'})).display_name}** — {r['points']} gil 🪙 · {r['correct_guesses']} correct" for i, r in enumerate(rows)]
+    lines  = []
+    for i, r in enumerate(rows):
+        medal  = medals[i] if i < 3 else f"**{i+1}.**"
+        member = interaction.guild.get_member(r["user_id"])
+        name   = member.display_name if member else f"User {r['user_id']}"
+        lines.append(f"{medal} **{name}** — {r['points']} gil 🪙 · {r['correct_guesses']} correct")
     embed = discord.Embed(title="🏆 Vana'diel Herald Leaderboard", color=0xf0c060, description="\n".join(lines))
     embed.set_footer(text="Earn gil by winning Guess the Speaker. Spend it at /bank_shop.")
     await interaction.response.send_message(embed=embed)
