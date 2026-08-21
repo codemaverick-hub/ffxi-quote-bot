@@ -102,18 +102,7 @@ class Database:
                     added_at   TIMESTAMPTZ  DEFAULT NOW()
                 )
             """)
-            count = await conn.fetchval("SELECT COUNT(*) FROM bank_items")
-            if count == 0:
-                await conn.executemany(
-                    "INSERT INTO bank_items (name, description, cost) VALUES ($1, $2, $3)",
-                    [
-                        ("Adventurer's Title", "Receive the honorary 'Famous Adventurer' title — admins will assign you a special role.", 50),
-                        ("Linkshell Pearl", "Your name gets featured in the next Quote of the Day post.", 100),
-                        ("Claim Flag", "Bot announces that you have claimed an NM of your choice. Glory is yours.", 150),
-                        ("Mog Bonanza Ticket", "Enter a raffle for a prize chosen by your server admins. Kupo!", 300),
-                        ("Dynamis Access", "Receive the legendary 'Dynamis Veteran' recognition — admins will honor you.", 500),
-                    ]
-                )
+            # NOTE: No default bank items seeded — use /bank_add_item to add custom rewards
 
     # Server Config
     async def get_server_config(self, guild_id: int) -> dict:
@@ -122,8 +111,7 @@ class Database:
             return dict(row) if row else {"guild_id": guild_id, "message_frequency": 0.01, "meme_ratio": 0.15}
 
     async def upsert_server_config(self, guild_id: int, **kwargs):
-        if not kwargs:
-            return
+        if not kwargs: return
         cols    = ", ".join(kwargs.keys())
         vals    = ", ".join(f"${i+2}" for i in range(len(kwargs)))
         updates = ", ".join(f"{k} = EXCLUDED.{k}" for k in kwargs.keys())
@@ -136,8 +124,7 @@ class Database:
     async def add_blacklist_channel(self, guild_id: int, channel_id: int):
         async with self.pool.acquire() as conn:
             await conn.execute("""
-                INSERT INTO server_config (guild_id, blacklisted_channels)
-                VALUES ($1, ARRAY[$2]::BIGINT[])
+                INSERT INTO server_config (guild_id, blacklisted_channels) VALUES ($1, ARRAY[$2]::BIGINT[])
                 ON CONFLICT (guild_id) DO UPDATE
                 SET blacklisted_channels = array_append(
                     COALESCE(server_config.blacklisted_channels, ARRAY[]::BIGINT[]), $2
@@ -179,8 +166,7 @@ class Database:
     async def get_recent_hashes(self, guild_id: int, limit: int = 30) -> set[str]:
         async with self.pool.acquire() as conn:
             rows = await conn.fetch("""
-                SELECT quote_hash FROM recent_quotes
-                WHERE guild_id = $1 ORDER BY shown_at DESC LIMIT $2
+                SELECT quote_hash FROM recent_quotes WHERE guild_id = $1 ORDER BY shown_at DESC LIMIT $2
             """, guild_id, limit)
             return {r["quote_hash"] for r in rows}
 
@@ -189,8 +175,7 @@ class Database:
             await conn.execute("INSERT INTO recent_quotes (guild_id, quote_hash) VALUES ($1, $2)", guild_id, quote_hash)
             await conn.execute("""
                 DELETE FROM recent_quotes WHERE id IN (
-                    SELECT id FROM recent_quotes WHERE guild_id = $1
-                    ORDER BY shown_at DESC OFFSET 50
+                    SELECT id FROM recent_quotes WHERE guild_id = $1 ORDER BY shown_at DESC OFFSET 50
                 )
             """, guild_id)
 
@@ -198,43 +183,36 @@ class Database:
     async def add_vote(self, guild_id: int, quote_hash: str, is_upvote: bool):
         col = "upvotes" if is_upvote else "downvotes"
         await self.pool.execute(f"""
-            INSERT INTO quote_votes (guild_id, quote_hash, {col})
-            VALUES ($1, $2, 1)
-            ON CONFLICT (guild_id, quote_hash) DO UPDATE
-            SET {col} = quote_votes.{col} + 1
+            INSERT INTO quote_votes (guild_id, quote_hash, {col}) VALUES ($1, $2, 1)
+            ON CONFLICT (guild_id, quote_hash) DO UPDATE SET {col} = quote_votes.{col} + 1
         """, guild_id, quote_hash)
 
     # Source Verifications
-    async def ensure_verification_record(self, quote_hash: str, guild_id: int,
-                                          speaker: str, quote_text: str, source_tag: str):
+    async def ensure_verification_record(self, quote_hash: str, guild_id: int, speaker: str, quote_text: str, source_tag: str):
         await self.pool.execute("""
             INSERT INTO quote_verifications (quote_hash, guild_id, speaker, quote_text, source_tag)
-            VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (quote_hash, guild_id) DO NOTHING
+            VALUES ($1, $2, $3, $4, $5) ON CONFLICT (quote_hash, guild_id) DO NOTHING
         """, quote_hash, guild_id, speaker, quote_text, source_tag)
 
     async def add_verification(self, quote_hash: str, guild_id: int, is_confirm: bool):
         col = "confirmed" if is_confirm else "disputed"
         await self.pool.execute(f"""
-            INSERT INTO quote_verifications (quote_hash, guild_id, {col})
-            VALUES ($1, $2, 1)
-            ON CONFLICT (quote_hash, guild_id) DO UPDATE
-            SET {col} = quote_verifications.{col} + 1
+            INSERT INTO quote_verifications (quote_hash, guild_id, {col}) VALUES ($1, $2, 1)
+            ON CONFLICT (quote_hash, guild_id) DO UPDATE SET {col} = quote_verifications.{col} + 1
         """, quote_hash, guild_id)
 
     async def get_verification_counts(self, quote_hash: str, guild_id: int) -> dict:
         async with self.pool.acquire() as conn:
-            row = await conn.fetchrow("""
-                SELECT confirmed, disputed FROM quote_verifications
-                WHERE quote_hash = $1 AND guild_id = $2
-            """, quote_hash, guild_id)
+            row = await conn.fetchrow(
+                "SELECT confirmed, disputed FROM quote_verifications WHERE quote_hash = $1 AND guild_id = $2",
+                quote_hash, guild_id
+            )
             return dict(row) if row else {"confirmed": 0, "disputed": 0}
 
     async def get_disputed_quotes(self, guild_id: int, limit: int = 15) -> list[dict]:
         async with self.pool.acquire() as conn:
             rows = await conn.fetch("""
-                SELECT * FROM quote_verifications
-                WHERE guild_id = $1 AND disputed > 0
+                SELECT * FROM quote_verifications WHERE guild_id = $1 AND disputed > 0
                 ORDER BY disputed DESC, confirmed ASC LIMIT $2
             """, guild_id, limit)
             return [dict(r) for r in rows]
@@ -242,8 +220,7 @@ class Database:
     async def get_verified_quotes(self, guild_id: int, limit: int = 15) -> list[dict]:
         async with self.pool.acquire() as conn:
             rows = await conn.fetch("""
-                SELECT * FROM quote_verifications
-                WHERE guild_id = $1 AND confirmed >= 3
+                SELECT * FROM quote_verifications WHERE guild_id = $1 AND confirmed >= 3
                 ORDER BY confirmed DESC LIMIT $2
             """, guild_id, limit)
             return [dict(r) for r in rows]
@@ -256,10 +233,9 @@ class Database:
 
     async def add_points(self, guild_id: int, user_id: int, points: int, correct: bool = False):
         await self.pool.execute("""
-            INSERT INTO user_scores (guild_id, user_id, points, correct_guesses)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO user_scores (guild_id, user_id, points, correct_guesses) VALUES ($1, $2, $3, $4)
             ON CONFLICT (guild_id, user_id) DO UPDATE
-            SET points          = GREATEST(0, user_scores.points + $3),
+            SET points = GREATEST(0, user_scores.points + $3),
                 correct_guesses = user_scores.correct_guesses + $4
         """, guild_id, user_id, points, 1 if correct else 0)
 
@@ -309,8 +285,7 @@ class Database:
     async def get_pending_purchases(self, guild_id: int) -> list[dict]:
         async with self.pool.acquire() as conn:
             rows = await conn.fetch("""
-                SELECT * FROM bank_purchases
-                WHERE guild_id = $1 AND fulfilled = FALSE ORDER BY purchased_at ASC
+                SELECT * FROM bank_purchases WHERE guild_id = $1 AND fulfilled = FALSE ORDER BY purchased_at ASC
             """, guild_id)
             return [dict(r) for r in rows]
 
